@@ -9,6 +9,7 @@ module Tree
         , indexedMap
         , map
         , singleton
+        , traverse
         )
 
 
@@ -70,13 +71,70 @@ toList t =
 
 
 map : (a -> b) -> Tree a -> Tree b
-map f (Tree d cs) =
-    mapHelp f
+map f t =
+    traverse (\_ e -> ( (), f e )) () t
+        |> Tuple.second
+
+
+indexedMap : (Int -> a -> b) -> Tree a -> Tree b
+indexedMap f t =
+    traverse (\idx elem -> ( idx + 1, f idx elem )) 0 t
+        |> Tuple.second
+
+
+traverse : (s -> a -> ( s, b )) -> s -> Tree a -> ( s, Tree b )
+traverse f s (Tree d cs) =
+    let
+        ( s_, d_ ) =
+            f s d
+    in
+    traverseHelp f
+        s_
         { todo = cs
         , done = []
-        , self = f d
+        , self = d_
         , stack = Top
         }
+
+
+traverseHelp : (s -> a -> ( s, b )) -> s -> Acc a b -> ( s, Tree b )
+traverseHelp f state acc =
+    case acc.todo of
+        [] ->
+            let
+                node =
+                    Tree acc.self (List.reverse acc.done)
+            in
+            case acc.stack of
+                Top ->
+                    ( state, node )
+
+                Stack t ->
+                    { t | done = node :: t.done }
+                        |> traverseHelp f state
+
+        (Tree d []) :: rest ->
+            let
+                ( state_, datum ) =
+                    f state d
+            in
+            { acc
+                | todo = rest
+                , done = Tree datum [] :: acc.done
+            }
+                |> traverseHelp f state_
+
+        (Tree d cs) :: rest ->
+            let
+                ( state_, datum ) =
+                    f state d
+            in
+            { todo = cs
+            , done = []
+            , self = datum
+            , stack = Stack { acc | todo = rest }
+            }
+                |> traverseHelp f state_
 
 
 type alias Acc a b =
@@ -90,78 +148,3 @@ type alias Acc a b =
 type Stack a b
     = Stack (Acc a b)
     | Top
-
-
-mapHelp : (a -> b) -> Acc a b -> Tree b
-mapHelp f acc =
-    case acc.todo of
-        [] ->
-            let
-                node =
-                    Tree acc.self (List.reverse acc.done)
-            in
-            case acc.stack of
-                Top ->
-                    node
-
-                Stack t ->
-                    { t | done = node :: t.done }
-                        |> mapHelp f
-
-        (Tree d []) :: rest ->
-            { acc
-                | todo = rest
-                , done = Tree (f d) [] :: acc.done
-            }
-                |> mapHelp f
-
-        (Tree d cs) :: rest ->
-            { todo = cs
-            , done = []
-            , self = f d
-            , stack = Stack { acc | todo = rest }
-            }
-                |> mapHelp f
-
-
-indexedMap : (Int -> a -> b) -> Tree a -> Tree b
-indexedMap f (Tree d cs) =
-    indexedMapHelp f
-        1
-        { todo = cs
-        , done = []
-        , self = f 0 d
-        , stack = Top
-        }
-
-
-indexedMapHelp : (Int -> a -> b) -> Int -> Acc a b -> Tree b
-indexedMapHelp f idx acc =
-    case acc.todo of
-        [] ->
-            let
-                node =
-                    Tree acc.self (List.reverse acc.done)
-            in
-            case acc.stack of
-                Top ->
-                    node
-
-                Stack t ->
-                    { t | done = node :: t.done }
-                        |> indexedMapHelp f idx
-
-        (Tree d []) :: rest ->
-            { acc
-                | todo = rest
-                , done = Tree (f idx d) [] :: acc.done
-            }
-                |> indexedMapHelp f (idx + 1)
-
-        (Tree d cs) :: rest ->
-            { todo = cs
-            , done = []
-            , self = f idx d
-            , stack = Stack { acc | todo = rest }
-            }
-                |> indexedMapHelp f (idx + 1)
