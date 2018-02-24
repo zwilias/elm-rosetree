@@ -3,11 +3,11 @@ module Tree
         ( Tree
         , children
         , count
-        , datum
         , flatten
         , foldl
         , foldr
         , indexedMap
+        , label
         , map
         , singleton
         , traverse
@@ -19,12 +19,7 @@ module Tree
 
 # Structure
 
-@docs Tree, singleton, tree
-
-
-# Information
-
-@docs datum, children
+@docs Tree, singleton, tree, label, children
 
 
 # Folds
@@ -40,7 +35,7 @@ module Tree
 
 
 {-| Represents a multiway tree. Each node in the tree holds a piece of
-information (the `datum`) and a list of children, each of which is a tree.
+information (the `label`) and a list of children, each of which is a tree.
 -}
 type Tree a
     = Tree a (List (Tree a))
@@ -49,7 +44,7 @@ type Tree a
 {-| Creates a singleton tree. This corresponds to `tree v []`.
 
     singleton 5
-        |> datum
+        |> label
     --> 5
 
     singleton "foo"
@@ -71,8 +66,8 @@ tree =
 
 {-| TODO: docs
 -}
-datum : Tree a -> a
-datum (Tree v _) =
+label : Tree a -> a
+label (Tree v _) =
     v
 
 
@@ -129,6 +124,17 @@ flatten t =
     foldr (::) [] t
 
 
+{-| TODO: make tail recursive
+-}
+unfold : (b -> ( a, List b )) -> b -> Tree a
+unfold f seed =
+    let
+        ( v, next ) =
+            f seed
+    in
+    Tree v (List.map (unfold f) next)
+
+
 {-| TODO: docs
 -}
 map : (a -> b) -> Tree a -> Tree b
@@ -180,23 +186,23 @@ traverseHelp f state acc =
 
         (Tree d []) :: rest ->
             let
-                ( state_, datum ) =
+                ( state_, label ) =
                     f state d
             in
             { acc
                 | todo = rest
-                , done = Tree datum [] :: acc.done
+                , done = Tree label [] :: acc.done
             }
                 |> traverseHelp f state_
 
         (Tree d cs) :: rest ->
             let
-                ( state_, datum ) =
+                ( state_, label ) =
                     f state d
             in
             { todo = cs
             , done = []
-            , self = datum
+            , self = label
             , stack = Stack { acc | todo = rest }
             }
                 |> traverseHelp f state_
