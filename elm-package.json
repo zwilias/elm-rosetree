@@ -3,10 +3,9 @@
     "summary": "helpful summary of your project, less than 80 characters",
     "repository": "https://github.com/user/project.git",
     "license": "BSD3",
-    "source-directories": [
-        "src"
-    ],
-    "exposed-modules": [],
+    "source-directories": ["src"],
+    "exposed-modules": ["Tree", "Tree.Zipper"],
+
     "dependencies": {
         "elm-lang/core": "5.1.1 <= v < 6.0.0"
     },

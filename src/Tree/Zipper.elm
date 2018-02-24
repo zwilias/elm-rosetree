@@ -1,8 +1,46 @@
-module Tree.Zipper exposing (..)
+module Tree.Zipper
+    exposing
+        ( Crumb
+        , Zipper
+        , backward
+        , current
+        , find
+        , findFromRoot
+        , firstChild
+        , forward
+        , init
+        , lastChild
+        , lastDescendant
+        , nextSibling
+        , parent
+        , previousSibling
+        , root
+        )
 
-import Tree exposing (Tree(..))
+{-| TODO: docs
 
 
+# Structure
+
+@docs Zipper, Crumb, init, current
+
+
+# Navigation
+
+@docs firstChild, lastChild, parent, forward, backward, root, lastDescendant, nextSibling, previousSibling
+
+
+# Utility
+
+@docs find, findFromRoot
+
+-}
+
+import Tree exposing (Tree)
+
+
+{-| TODO: docs
+-}
 type alias Crumb a =
     { before : List (Tree a)
     , datum : a
@@ -10,10 +48,29 @@ type alias Crumb a =
     }
 
 
+{-| TODO: docs
+-}
 type alias Zipper a =
     { focus : Tree a, crumbs : List (Crumb a) }
 
 
+{-| TODO: docs
+
+    import Tree exposing (Tree, tree)
+
+
+    myTree : Tree Int
+    myTree =
+        tree 1
+            [ Tree.singleton 2
+            , Tree.singleton 3
+            ]
+
+
+    init myTree
+    --> { focus = myTree, crumbs = [] }
+
+-}
 init : Tree a -> Zipper a
 init t =
     { focus = t, crumbs = [] }
@@ -27,11 +84,15 @@ forward zipper =
     firstOf [ firstChild, nextSibling, nextSiblingOfAncestor ] zipper
 
 
+{-| TODO: docs
+-}
 backward : Zipper a -> Maybe (Zipper a)
 backward zipper =
     firstOf [ previousSibling >> Maybe.map lastDescendant, parent ] zipper
 
 
+{-| TODO: docs
+-}
 parent : Zipper a -> Maybe (Zipper a)
 parent zipper =
     case zipper.crumbs of
@@ -45,47 +106,61 @@ parent zipper =
                 }
 
 
+{-| TODO: docs
+-}
 firstChild : Zipper a -> Maybe (Zipper a)
 firstChild zipper =
-    case zipper.focus of
-        Tree _ [] ->
+    case Tree.children zipper.focus of
+        [] ->
             Nothing
 
-        Tree f (c :: cs) ->
+        c :: cs ->
             zipper
                 |> withFocus c
-                |> addCrumb { before = [], datum = f, after = cs }
+                |> addCrumb
+                    { before = []
+                    , datum = Tree.datum zipper.focus
+                    , after = cs
+                    }
                 |> Just
 
 
+{-| TODO: docs
+-}
 lastChild : Zipper a -> Maybe (Zipper a)
 lastChild zipper =
-    case zipper.focus of
-        Tree f cs ->
-            case List.reverse cs of
-                [] ->
-                    Nothing
+    case List.reverse <| Tree.children zipper.focus of
+        [] ->
+            Nothing
 
-                c :: rest ->
-                    zipper
-                        |> withFocus c
-                        |> addCrumb { before = rest, datum = f, after = [] }
-                        |> Just
+        c :: rest ->
+            zipper
+                |> withFocus c
+                |> addCrumb
+                    { before = rest
+                    , datum = Tree.datum zipper.focus
+                    , after = []
+                    }
+                |> Just
 
 
-toRoot : Zipper a -> Zipper a
-toRoot zipper =
+{-| TODO: docs
+-}
+root : Zipper a -> Zipper a
+root zipper =
     case zipper.crumbs of
         [] ->
             zipper
 
         crumb :: rest ->
-            toRoot <|
+            root <|
                 { focus = reconstruct zipper.focus crumb
                 , crumbs = rest
                 }
 
 
+{-| TODO: docs
+-}
 lastDescendant : Zipper a -> Zipper a
 lastDescendant zipper =
     case lastChild zipper of
@@ -96,6 +171,8 @@ lastDescendant zipper =
             lastDescendant child
 
 
+{-| TODO: docs
+-}
 nextSibling : Zipper a -> Maybe (Zipper a)
 nextSibling zipper =
     case zipper.crumbs of
@@ -119,6 +196,8 @@ nextSibling zipper =
             Nothing
 
 
+{-| TODO: docs
+-}
 previousSibling : Zipper a -> Maybe (Zipper a)
 previousSibling zipper =
     case zipper.crumbs of
@@ -142,6 +221,8 @@ previousSibling zipper =
             Nothing
 
 
+{-| TODO: docs
+-}
 find : (a -> Bool) -> Zipper a -> Maybe (Zipper a)
 find f zipper =
     if f <| Tree.datum zipper.focus then
@@ -155,11 +236,15 @@ find f zipper =
                 Nothing
 
 
+{-| TODO: docs
+-}
 findFromRoot : (a -> Bool) -> Zipper a -> Maybe (Zipper a)
 findFromRoot f zipper =
-    find f (toRoot zipper)
+    find f (root zipper)
 
 
+{-| TODO: docs
+-}
 current : Zipper a -> Tree a
 current =
     .focus
@@ -207,7 +292,7 @@ lastChildOfPreviousSibling zipper =
 
 reconstruct : Tree a -> Crumb a -> Tree a
 reconstruct focus { before, datum, after } =
-    Tree datum (List.reverse before ++ [ focus ] ++ after)
+    Tree.tree datum (List.reverse before ++ [ focus ] ++ after)
 
 
 withFocus : Tree a -> Zipper a -> Zipper a
