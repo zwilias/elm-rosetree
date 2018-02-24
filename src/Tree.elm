@@ -9,6 +9,7 @@ module Tree
         , indexedMap
         , label
         , map
+        , mapLabel
         , singleton
         , traverse
         , tree
@@ -29,7 +30,7 @@ module Tree
 
 # Mapping and traversing
 
-@docs map, indexedMap, traverse
+@docs map, indexedMap, traverse, mapLabel
 
 -}
 
@@ -69,6 +70,11 @@ tree =
 label : Tree a -> a
 label (Tree v _) =
     v
+
+
+mapLabel : (a -> a) -> Tree a -> Tree a
+mapLabel f (Tree v cs) =
+    Tree (f v) cs
 
 
 {-| TODO: docs

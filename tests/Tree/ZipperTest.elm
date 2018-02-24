@@ -7,12 +7,12 @@ import Tree exposing (Tree)
 import Tree.Zipper as Zipper exposing (Zipper)
 
 
-currentOfInitIsSelf : Test
-currentOfInitIsSelf =
-    test "init followed by current is identity" <|
+treeOfInitIsSelf : Test
+treeOfInitIsSelf =
+    test "fromTree followed by tree is identity" <|
         \_ ->
-            Zipper.init tree
-                |> Zipper.current
+            Zipper.fromTree tree
+                |> Zipper.tree
                 |> Expect.equal tree
 
 
@@ -20,10 +20,10 @@ rootOfAnyMotionIsSame : Test
 rootOfAnyMotionIsSame =
     fuzz motions "root after a series of motions is always the same" <|
         \m ->
-            Zipper.init tree
+            Zipper.fromTree tree
                 |> apply m
                 |> Zipper.root
-                |> Zipper.current
+                |> Zipper.tree
                 |> Expect.equal tree
 
 
@@ -31,9 +31,9 @@ lastDescendant : Test
 lastDescendant =
     test "lastDescendant works out" <|
         \_ ->
-            Zipper.init tree
+            Zipper.fromTree tree
                 |> Zipper.lastDescendant
-                |> Zipper.current
+                |> Zipper.tree
                 |> Expect.equal (Tree.singleton 99)
 
 
@@ -41,10 +41,10 @@ backward : Test
 backward =
     test "backward from lastDescendant" <|
         \_ ->
-            Zipper.init tree
+            Zipper.fromTree tree
                 |> Zipper.lastDescendant
                 |> Zipper.backward
-                |> Maybe.map Zipper.current
+                |> Maybe.map Zipper.tree
                 |> Expect.equal (Just <| Tree.singleton 7)
 
 
@@ -53,21 +53,21 @@ find =
     describe "find"
         [ test "find finds the thing" <|
             \_ ->
-                Zipper.init tree
+                Zipper.fromTree tree
                     |> Zipper.find (\t -> t == 99)
-                    |> Maybe.map Zipper.current
+                    |> Maybe.map Zipper.tree
                     |> Expect.equal (Just <| Tree.singleton 99)
         , test "expect when it's not there" <|
             \_ ->
-                Zipper.init tree
+                Zipper.fromTree tree
                     |> Zipper.find ((==) 100)
                     |> Expect.equal Nothing
         , test "searches within the focus" <|
             \_ ->
-                Zipper.init tree
+                Zipper.fromTree tree
                     |> Zipper.lastChild
                     |> Maybe.andThen (Zipper.find ((==) 2))
-                    |> Maybe.map Zipper.current
+                    |> Maybe.map Zipper.tree
                     |> Expect.equal (Just <| Tree.singleton 2)
         ]
 
@@ -85,10 +85,10 @@ findFromRoot =
                         , Tree.singleton 3
                         ]
             in
-            Zipper.init tree
+            Zipper.fromTree tree
                 |> Zipper.lastChild
                 |> Maybe.andThen (Zipper.findFromRoot ((==) 2))
-                |> Maybe.map Zipper.current
+                |> Maybe.map Zipper.tree
                 |> Expect.equal (Just expectedResult)
 
 
