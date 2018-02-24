@@ -280,16 +280,6 @@ nextSiblingOfAncestor zipper =
                     Just s
 
 
-lastChildOfPreviousSibling : Zipper a -> Maybe (Zipper a)
-lastChildOfPreviousSibling zipper =
-    case previousSibling zipper of
-        Nothing ->
-            Nothing
-
-        Just previous ->
-            lastChild previous
-
-
 reconstruct : Tree a -> Crumb a -> Tree a
 reconstruct focus { before, datum, after } =
     Tree.tree datum (List.reverse before ++ [ focus ] ++ after)
