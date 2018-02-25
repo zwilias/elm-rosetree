@@ -1,7 +1,7 @@
 module Tree.Zipper
     exposing
-        ( Crumb
-        , Zipper
+        ( Zipper
+        , append
         , backward
         , children
         , find
@@ -12,9 +12,14 @@ module Tree.Zipper
         , label
         , lastChild
         , lastDescendant
+        , mapLabel
+        , mapTree
         , nextSibling
         , parent
+        , prepend
         , previousSibling
+        , replaceLabel
+        , replaceTree
         , root
         , tree
         )
@@ -24,12 +29,17 @@ module Tree.Zipper
 
 # Structure
 
-@docs Zipper, Crumb, fromTree, tree, label, children
+@docs Zipper, fromTree, tree, label, children
 
 
 # Navigation
 
 @docs firstChild, lastChild, parent, forward, backward, root, lastDescendant, nextSibling, previousSibling
+
+
+# Modification
+
+@docs mapTree, replaceTree, mapLabel, replaceLabel, append, prepend
 
 
 # Utility
@@ -43,17 +53,15 @@ import Tree exposing (Tree)
 
 {-| TODO: docs
 -}
+type Zipper a
+    = Zipper { focus : Tree a, crumbs : List (Crumb a) }
+
+
 type alias Crumb a =
     { before : List (Tree a)
     , label : a
     , after : List (Tree a)
     }
-
-
-{-| TODO: docs
--}
-type Zipper a
-    = Zipper { focus : Tree a, crumbs : List (Crumb a) }
 
 
 {-| TODO: docs
@@ -308,26 +316,36 @@ children zipper =
     Tree.children <| tree zipper
 
 
+{-| TODO: docs
+-}
 mapTree : (Tree a -> Tree a) -> Zipper a -> Zipper a
 mapTree f (Zipper zipper) =
     Zipper { zipper | focus = f zipper.focus }
 
 
+{-| TODO: docs
+-}
 replaceTree : Tree a -> Zipper a -> Zipper a
 replaceTree t zipper =
     mapTree (always t) zipper
 
 
+{-| TODO: docs
+-}
 mapLabel : (a -> a) -> Zipper a -> Zipper a
 mapLabel f zipper =
     mapTree (Tree.mapLabel f) zipper
 
 
+{-| TODO: docs
+-}
 replaceLabel : a -> Zipper a -> Zipper a
 replaceLabel l zipper =
     mapLabel (always l) zipper
 
 
+{-| TODO: docs
+-}
 prepend : Tree a -> Zipper a -> Zipper a
 prepend t (Zipper zipper) =
     case zipper.crumbs of
@@ -338,6 +356,8 @@ prepend t (Zipper zipper) =
             Zipper { zipper | crumbs = { crumb | before = t :: crumb.before } :: rs }
 
 
+{-| TODO: docs
+-}
 append : Tree a -> Zipper a -> Zipper a
 append t (Zipper zipper) =
     case zipper.crumbs of

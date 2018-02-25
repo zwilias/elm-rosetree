@@ -21,7 +21,7 @@ rootOfAnyMotionIsSame =
     fuzz motions "root after a series of motions is always the same" <|
         \m ->
             Zipper.fromTree tree
-                |> apply m
+                |> applyMotions m
                 |> Zipper.root
                 |> Zipper.tree
                 |> Expect.equal tree
@@ -111,14 +111,14 @@ type alias Motion a =
     Zipper a -> Maybe (Zipper a)
 
 
-apply : List (Motion a) -> Zipper a -> Zipper a
-apply motions zipper =
+applyMotions : List (Motion a) -> Zipper a -> Zipper a
+applyMotions motions zipper =
     case motions of
         [] ->
             zipper
 
         m :: rest ->
-            apply rest (Maybe.withDefault zipper (m zipper))
+            applyMotions rest (Maybe.withDefault zipper (m zipper))
 
 
 tree : Tree Int

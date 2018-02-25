@@ -1,18 +1,28 @@
 module Tree
     exposing
         ( Tree
+        , andMap
+        , appendChild
         , children
         , count
         , flatten
         , foldl
         , foldr
         , indexedMap
+        , indexedMap2
         , label
         , map
+        , map2
+        , mapAccumulate
+        , mapAccumulate2
+        , mapChildren
         , mapLabel
+        , prependChild
+        , replaceChildren
+        , replaceLabel
         , singleton
-        , traverse
         , tree
+        , unfold
         )
 
 {-| TODO: docs
@@ -23,6 +33,11 @@ module Tree
 @docs Tree, singleton, tree, label, children
 
 
+# Modification
+
+@docs mapLabel, replaceLabel, mapChildren, replaceChildren, prependChild, appendChild
+
+
 # Folds
 
 @docs foldl, foldr, count, flatten
@@ -30,7 +45,12 @@ module Tree
 
 # Mapping and traversing
 
-@docs map, indexedMap, traverse, mapLabel
+@docs map, indexedMap, mapAccumulate, map2, indexedMap2, mapAccumulate2, andMap
+
+
+# Unfold
+
+@docs unfold
 
 -}
 
@@ -58,47 +78,188 @@ singleton v =
     Tree v []
 
 
-{-| TODO: docs
+{-| Construct a tree from a label and a list of children.
+
+    tree 5 []
+    --> singleton 5
+
+
+    tree 5
+        [ singleton 1
+        , singleton 2
+        , tree 3
+            [ singleton 4
+            , singleton 5
+            ]
+        ]
+        |> count
+    --> 6
+
 -}
 tree : a -> List (Tree a) -> Tree a
 tree =
     Tree
 
 
-{-| TODO: docs
+{-| Gives you the label of a tree.
+
+    tree "hello" [ singleton "world", singleton "etc" ]
+        |> label
+    --> "hello"
+
 -}
 label : Tree a -> a
 label (Tree v _) =
     v
 
 
+{-| Execute a function on the label of this tree.
+
+    tree "hello" [ singleton "world", singleton "etc" ]
+        |> mapLabel String.toUpper
+    --> tree "HELLO" [ singleton "world", singleton "etc" ]
+
+-}
 mapLabel : (a -> a) -> Tree a -> Tree a
 mapLabel f (Tree v cs) =
     Tree (f v) cs
 
 
-{-| TODO: docs
+{-| Replace the label of this tree.
+
+    singleton "foo"
+        |> replaceLabel "bar"
+    --> singleton "bar"
+
+-}
+replaceLabel : a -> Tree a -> Tree a
+replaceLabel v (Tree _ cs) =
+    Tree v cs
+
+
+{-| Returns the children of a tree as a list.
+
+    singleton "heh"
+        |> children
+    --> []
+
+
+    tree "hello" [ singleton "world", singleton "etc" ]
+        |> children
+    --> [ singleton "world", singleton "etc" ]
+
 -}
 children : Tree a -> List (Tree a)
 children (Tree _ c) =
     c
 
 
-{-| TODO: docs
+{-| Execute a function on the children of a tree.
+
+    tree "lower1"
+        [ singleton "upper1"
+        , tree "upper2" [ singleton "lower2"]
+        , singleton "upper3"
+        ]
+        |> mapChildren (List.map (mapLabel String.toUpper))
+    --> tree "lower1"
+    -->     [ singleton "UPPER1"
+    -->     , tree "UPPER2" [ singleton "lower2"]
+    -->     , singleton "UPPER3"
+    -->     ]
+
+-}
+mapChildren : (List (Tree a) -> List (Tree a)) -> Tree a -> Tree a
+mapChildren f (Tree v cs) =
+    Tree v (f cs)
+
+
+{-| Replace the children of a tree.
+
+    tree "hello" [ singleton "world" ]
+        |> replaceChildren [ singleton "everyone" ]
+    --> tree "hello" [ singleton "everyone" ]
+
+-}
+replaceChildren : List (Tree a) -> Tree a -> Tree a
+replaceChildren cs (Tree v _) =
+    Tree v cs
+
+
+{-| Prepend a single child to a tree.
+
+    tree "hello" [ singleton "everyone" ]
+        |> prependChild (singleton "dear")
+    --> tree "hello" [ singleton "dear", singleton "everyone" ]
+
+-}
+prependChild : Tree a -> Tree a -> Tree a
+prependChild c (Tree v cs) =
+    Tree v (c :: cs)
+
+
+{-| Append a child to a tree. Note that this uses `children ++ [ newChild ]`
+under the hood so use sparingly.
+
+    tree "hello" [ singleton "you" ]
+        |> appendChild (singleton "and you!")
+    --> tree "hello" [ singleton "you", singleton "and you!" ]
+
+-}
+appendChild : Tree a -> Tree a -> Tree a
+appendChild c (Tree v cs) =
+    Tree v (cs ++ [ c ])
+
+
+{-| Count the labels in a tree.
+
+    singleton "foo"
+        |> count
+    --> 1
+
+    tree "foo" [ singleton "bar", singleton "baz" ]
+        |> count
+    --> 3
+
 -}
 count : Tree a -> Int
 count t =
     foldl (\_ x -> x + 1) 0 t
 
 
-{-| TODO: docs
+{-| Fold over all the labels in a tree, left to right, depth first.
+
+    tree "Hello "
+        [ singleton "world "
+        , tree "and "
+            [ singleton "you "
+            , singleton "and "
+            , singleton "you"
+            ]
+        , singleton "!"
+        ]
+        |> foldl (\label acc -> acc ++ label) ""
+    --> "Hello world and you and you!"
+
 -}
 foldl : (a -> b -> b) -> b -> Tree a -> b
 foldl f acc t =
     foldlHelp f acc [ t ] []
 
 
-{-| TODO: docs
+{-| Fold over all the labels in a tree, right to left, depth first.
+
+    tree 1
+        [ singleton 2
+        , tree 3
+            [ singleton 4
+            , singleton 5
+            ]
+        , singleton 6
+        ]
+        |> foldr (::) []
+    --> [ 1, 2, 3, 4, 5, 6 ]
+
 -}
 foldr : (a -> b -> b) -> b -> Tree a -> b
 foldr f acc t =
@@ -119,18 +280,42 @@ foldlHelp f acc trees nextSets =
         (Tree d []) :: rest ->
             foldlHelp f (f d acc) rest nextSets
 
-        (Tree d (x :: xs)) :: rest ->
-            foldlHelp f acc (x :: xs) ((Tree d [] :: rest) :: nextSets)
+        (Tree d xs) :: rest ->
+            foldlHelp f (f d acc) xs (rest :: nextSets)
 
 
-{-| TODO: docs
+{-| Flattens the tree into a list. This is equivalent to `foldr (::) []`
 -}
 flatten : Tree a -> List a
 flatten t =
     foldr (::) [] t
 
 
-{-| TODO: make tail recursive
+{-| Create a tree from a seed.
+
+Running the function on the seed should return a label and a list of seeds to
+use for the children.
+
+For example, this function takes and int, and uses the string representation of
+that int as the label, with its children representing the integers from 0 up to
+but not including the value. The expected result is a tree in which each label
+has the number of children mentioned in the label, recursively.
+
+    unfolder : Int -> (String, List Int)
+    unfolder x =
+        ( toString x, List.range 0 (x - 1) )
+
+
+    unfold unfolder 3
+    --> tree "3"
+    -->     [ singleton "0"
+    -->     , tree "1" [ singleton "0" ]
+    -->     , tree "2"
+    -->         [ singleton "0"
+    -->         , tree "1" [ singleton "0" ]
+    -->         ]
+    -->     ]
+
 -}
 unfold : (b -> ( a, List b )) -> b -> Tree a
 unfold f seed =
@@ -138,14 +323,61 @@ unfold f seed =
         ( v, next ) =
             f seed
     in
-    Tree v (List.map (unfold f) next)
+    unfoldHelp f { todo = next, label = v, done = [] } []
+
+
+unfoldHelp :
+    (b -> ( a, List b ))
+    -> UnfoldAcc a b
+    -> List (UnfoldAcc a b)
+    -> Tree a
+unfoldHelp f acc stack =
+    case acc.todo of
+        [] ->
+            let
+                node =
+                    Tree acc.label (List.reverse acc.done)
+            in
+            case stack of
+                [] ->
+                    node
+
+                top :: rest ->
+                    unfoldHelp f
+                        { top | done = node :: top.done }
+                        rest
+
+        x :: xs ->
+            case f x of
+                ( label, [] ) ->
+                    unfoldHelp f
+                        { acc
+                            | todo = xs
+                            , done = singleton label :: acc.done
+                        }
+                        stack
+
+                ( label, todo ) ->
+                    unfoldHelp f
+                        { todo = todo
+                        , label = label
+                        , done = []
+                        }
+                        ({ acc | todo = xs } :: stack)
+
+
+type alias UnfoldAcc a b =
+    { todo : List b
+    , done : List (Tree a)
+    , label : a
+    }
 
 
 {-| TODO: docs
 -}
 map : (a -> b) -> Tree a -> Tree b
 map f t =
-    traverse (\_ e -> ( (), f e )) () t
+    mapAccumulate (\_ e -> ( (), f e )) () t
         |> Tuple.second
 
 
@@ -153,75 +385,172 @@ map f t =
 -}
 indexedMap : (Int -> a -> b) -> Tree a -> Tree b
 indexedMap f t =
-    traverse (\idx elem -> ( idx + 1, f idx elem )) 0 t
+    mapAccumulate (\idx elem -> ( idx + 1, f idx elem )) 0 t
         |> Tuple.second
 
 
 {-| TODO: docs
 -}
-traverse : (s -> a -> ( s, b )) -> s -> Tree a -> ( s, Tree b )
-traverse f s (Tree d cs) =
+mapAccumulate : (s -> a -> ( s, b )) -> s -> Tree a -> ( s, Tree b )
+mapAccumulate f s (Tree d cs) =
     let
         ( s_, d_ ) =
             f s d
     in
-    traverseHelp f
+    mapAccumulateHelp f
         s_
         { todo = cs
         , done = []
-        , self = d_
-        , stack = Top
+        , label = d_
         }
+        []
 
 
-traverseHelp : (s -> a -> ( s, b )) -> s -> Acc a b -> ( s, Tree b )
-traverseHelp f state acc =
+mapAccumulateHelp :
+    (s -> a -> ( s, b ))
+    -> s
+    -> MapAcc a b
+    -> List (MapAcc a b)
+    -> ( s, Tree b )
+mapAccumulateHelp f state acc stack =
     case acc.todo of
         [] ->
             let
                 node =
-                    Tree acc.self (List.reverse acc.done)
+                    Tree acc.label (List.reverse acc.done)
             in
-            case acc.stack of
-                Top ->
+            case stack of
+                [] ->
                     ( state, node )
 
-                Stack t ->
-                    { t | done = node :: t.done }
-                        |> traverseHelp f state
+                top :: rest ->
+                    mapAccumulateHelp f state { top | done = node :: top.done } rest
 
         (Tree d []) :: rest ->
             let
                 ( state_, label ) =
                     f state d
             in
-            { acc
-                | todo = rest
-                , done = Tree label [] :: acc.done
-            }
-                |> traverseHelp f state_
+            mapAccumulateHelp f
+                state_
+                { acc
+                    | todo = rest
+                    , done = Tree label [] :: acc.done
+                }
+                stack
 
         (Tree d cs) :: rest ->
             let
                 ( state_, label ) =
                     f state d
             in
-            { todo = cs
-            , done = []
-            , self = label
-            , stack = Stack { acc | todo = rest }
-            }
-                |> traverseHelp f state_
+            mapAccumulateHelp f
+                state_
+                { todo = cs
+                , done = []
+                , label = label
+                }
+                ({ acc | todo = rest } :: stack)
 
 
-type alias Acc a b =
+type alias MapAcc a b =
     { todo : List (Tree a)
     , done : List (Tree b)
-    , self : b
-    , stack : Stack a b
+    , label : b
     }
 
 
-type Stack a b
-    = Stack (Acc a b)
-    | Top
+{-| TODO: docs
+-}
+map2 : (a -> b -> c) -> Tree a -> Tree b -> Tree c
+map2 f left right =
+    mapAccumulate2 (\s a b -> ( s, f a b )) () left right
+        |> Tuple.second
+
+
+{-| TODO: docs
+-}
+indexedMap2 : (Int -> a -> b -> c) -> Tree a -> Tree b -> Tree c
+indexedMap2 f left right =
+    mapAccumulate2 (\s a b -> ( s + 1, f s a b )) 0 left right
+        |> Tuple.second
+
+
+{-| TODO: docs
+-}
+andMap : Tree (a -> b) -> Tree a -> Tree b
+andMap =
+    map2 (<|)
+
+
+{-| TODO: docs
+-}
+mapAccumulate2 : (s -> a -> b -> ( s, c )) -> s -> Tree a -> Tree b -> ( s, Tree c )
+mapAccumulate2 f s_ (Tree a xs) (Tree b ys) =
+    let
+        ( s, z ) =
+            f s_ a b
+    in
+    mapAccumulate2Help f
+        s
+        { todoL = xs
+        , todoR = ys
+        , done = []
+        , label = z
+        }
+        []
+
+
+mapAccumulate2Help :
+    (s -> a -> b -> ( s, c ))
+    -> s
+    -> Map2Acc a b c
+    -> List (Map2Acc a b c)
+    -> ( s, Tree c )
+mapAccumulate2Help f state acc stack =
+    case ( acc.todoL, acc.todoR ) of
+        ( [], _ ) ->
+            let
+                node =
+                    Tree acc.label (List.reverse acc.done)
+            in
+            case stack of
+                [] ->
+                    ( state, node )
+
+                top :: rest ->
+                    mapAccumulate2Help f state { top | done = node :: top.done } rest
+
+        ( _, [] ) ->
+            let
+                node =
+                    Tree acc.label (List.reverse acc.done)
+            in
+            case stack of
+                [] ->
+                    ( state, node )
+
+                top :: rest ->
+                    mapAccumulate2Help f state { top | done = node :: top.done } rest
+
+        ( (Tree a xs) :: restL, (Tree b ys) :: restR ) ->
+            let
+                ( state_, label ) =
+                    f state a b
+            in
+            mapAccumulate2Help f
+                state_
+                { todoL = xs
+                , todoR = ys
+                , done = []
+                , label = label
+                }
+                ({ acc | todoL = restL, todoR = restR } :: stack)
+
+
+type alias Map2Acc a b c =
+    { todoL : List (Tree a)
+    , todoR : List (Tree b)
+    , done : List (Tree c)
+    , label : c
+    }
