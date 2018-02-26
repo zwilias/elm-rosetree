@@ -373,7 +373,20 @@ type alias UnfoldAcc a b =
     }
 
 
-{-| TODO: docs
+{-| Run a function on every label in the tree.
+
+    tree 1
+        [ singleton 2
+        , tree 3 [ singleton 4 ]
+        , singleton 5
+        ]
+        |> map (\x -> toString (x * 2))
+    --> tree "2"
+    -->     [ singleton "4"
+    -->     , tree "6" [ singleton "8" ]
+    -->     , singleton "10"
+    -->     ]
+
 -}
 map : (a -> b) -> Tree a -> Tree b
 map f t =
@@ -381,7 +394,24 @@ map f t =
         |> Tuple.second
 
 
-{-| TODO: docs
+{-| Run a function on every label in the tree while getting access to the
+"index" of the label. This looks at thing in the same order as `foldl`.
+
+    tree "foo"
+        [ singleton "bar"
+        , tree "baz" [ singleton "hello", singleton "world" ]
+        , singleton "qlux"
+        ]
+        |> indexedMap (\idx val -> toString idx ++ " - " ++ val)
+    --> tree "0 - foo"
+    -->     [ singleton "1 - bar"
+    -->     , tree "2 - baz"
+    -->         [ singleton "3 - hello"
+    -->         , singleton "4 - world"
+    -->         ]
+    -->     , singleton "5 - qlux"
+    -->     ]
+
 -}
 indexedMap : (Int -> a -> b) -> Tree a -> Tree b
 indexedMap f t =
@@ -389,7 +419,20 @@ indexedMap f t =
         |> Tuple.second
 
 
-{-| TODO: docs
+{-| Map a function over every note while accumulating some value.
+
+    tree 1
+        [ singleton 2
+        , tree 3 [ singleton 4 ]
+        ]
+        |> mapAccumulate (\acc label -> ( acc + label, toString label)) 0
+    --> ( 10
+    --> , tree "1"
+    -->     [ singleton "2"
+    -->     , tree "3" [ singleton "4" ]
+    -->     ]
+    --> )
+
 -}
 mapAccumulate : (s -> a -> ( s, b )) -> s -> Tree a -> ( s, Tree b )
 mapAccumulate f s (Tree d cs) =
@@ -460,7 +503,30 @@ type alias MapAcc a b =
     }
 
 
-{-| TODO: docs
+{-| Map over 2 trees. Much like `List.map2`, the result will be truncated to the shorter result.
+
+    left : Tree Int
+    left =
+        tree 3
+            [ singleton 5
+            , tree 6 [ singleton 12 ]
+            , singleton 4
+            ]
+
+    right : Tree Int
+    right =
+        tree 8
+            [ tree 5 [ singleton 9 ]
+            , singleton 3
+            ]
+
+
+    map2 (\x y -> x + y) left right
+    --> tree 11
+    -->     [ singleton 10
+    -->     , singleton 9
+    -->     ]
+
 -}
 map2 : (a -> b -> c) -> Tree a -> Tree b -> Tree c
 map2 f left right =
@@ -468,7 +534,7 @@ map2 f left right =
         |> Tuple.second
 
 
-{-| TODO: docs
+{-| Like `map2`, but with the "index" added as the first argument.
 -}
 indexedMap2 : (Int -> a -> b -> c) -> Tree a -> Tree b -> Tree c
 indexedMap2 f left right =
@@ -476,14 +542,39 @@ indexedMap2 f left right =
         |> Tuple.second
 
 
-{-| TODO: docs
+{-| Allows mapping more functions over a tree, given a tree of functions.
 -}
 andMap : Tree (a -> b) -> Tree a -> Tree b
 andMap =
     map2 (<|)
 
 
-{-| TODO: docs
+{-| Allows mapping over 2 trees while also accumulating a value.
+
+    left : Tree Int
+    left =
+        tree 3
+            [ singleton 5
+            , tree 6 [ singleton 12 ]
+            , singleton 4
+            ]
+
+    right : Tree Int
+    right =
+        tree 8
+            [ tree 5 [ singleton 9 ]
+            , singleton 3
+            ]
+
+
+    mapAccumulate2 (\sum x y -> ( sum + x + y, x + y )) 0 left right
+    --> ( 30
+    --> , tree 11
+    -->     [ singleton 10
+    -->     , singleton 9
+    -->     ]
+    --> )
+
 -}
 mapAccumulate2 : (s -> a -> b -> ( s, c )) -> s -> Tree a -> Tree b -> ( s, Tree c )
 mapAccumulate2 f s_ (Tree a xs) (Tree b ys) =
