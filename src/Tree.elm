@@ -25,7 +25,28 @@ module Tree
         , unfold
         )
 
-{-| TODO: docs
+{-| A multiway tree or rosetree is a labeled tree where each node can have zero,
+one or more children, each of which represents a tree in its own right.
+
+The root of the tree is always labeled, so a tree always has at least one label.
+
+As an example, such a structure could represent a directory structure:
+
+    tree "root"
+        [ tree "home"
+            [ tree "user1" []
+            , tree "user2" []
+            ]
+        , tree "etc" []
+        , tree "var"
+            [ tree "log" []
+            ]
+        ]
+
+In a sense, `Html msg` is pretty similar to how such trees look, but they can be
+used to represent other things. A nested menu structure, or a sitemap, or any
+other structure where a single root is connected to children which can each have
+children of their own, and so on.
 
 
 # Structure
@@ -542,7 +563,9 @@ indexedMap2 f left right =
         |> Tuple.second
 
 
-{-| Allows mapping more functions over a tree, given a tree of functions.
+{-| Given a tree of functions and a tree of values, applies the functions to the
+matching labels in the tree of values, truncating branches to match the common
+shape of the trees.
 -}
 andMap : Tree (a -> b) -> Tree a -> Tree b
 andMap =
