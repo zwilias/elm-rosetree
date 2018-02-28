@@ -26,7 +26,10 @@ module Tree.Zipper
         , tree
         )
 
-{-| TODO: docs
+{-| Imagine walking through a `Tree` structure. You can step from a node to its
+parent, its children or one of its sibling. At every step of the way, you're "at"
+a tree. A `Tree.Zipper` represents such a step, and offers an API to navigate and
+modify the tree structure while walking through it.
 
 
 # Structure
@@ -53,10 +56,8 @@ module Tree.Zipper
 import Tree exposing (Tree)
 
 
-{-| Imagine walking through a `Tree` structure. You can step from a node to its
-parent, its children or one of its sibling. At every step of the way, you're "at"
-a tree. A `Tree.Zipper` represents such a step, and offers an API to navigate and
-modify the tree structure while walking through it.
+{-| Represents a location within a tree, always pointing at the root or one of
+its descendant trees.
 -}
 type Zipper a
     = Zipper { focus : Tree a, crumbs : List (Crumb a) }

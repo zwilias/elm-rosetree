@@ -1,0 +1,36 @@
+sudo: false
+language: node_js
+node_js: "node"
+os: linux
+env: ELM_VERSION=0.18.0
+
+cache:
+  directories:
+    - test/elm-stuff/build-artifacts
+    - sysconfcpus
+
+before_install:
+  - echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+  - | # epic build time improvement - see https://github.com/elm-lang/elm-compiler/issues/1473#issuecomment-245704142
+    if [ ! -d sysconfcpus/bin ];
+    then
+      git clone https://github.com/obmarg/libsysconfcpus.git;
+      cd libsysconfcpus;
+      ./configure --prefix=/sysconfcpus;
+      make && make install;
+      cd ..;
+    fi
+install:
+  - node --version
+  - npm --version
+  - npm install -g elm@
+  - mv /usr/local/bin/elm-make /usr/local/bin/elm-make-old
+  - printf '%s\n\n' '#!/bin/bash' 'echo "Running elm-make with sysconfcpus -n 2"' '/sysconfcpus/bin/sysconfcpus -n 2 elm-make-old "elm-safer-html"' > /usr/local/bin/elm-make
+  - chmod +x /usr/local/bin/elm-make
+  - npm install
+  - elm package install --yes
+  - cd tests
+  - elm package install --yes
+
+script:
+  - npm test
