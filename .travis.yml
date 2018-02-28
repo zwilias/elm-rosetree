@@ -23,7 +23,7 @@ before_install:
 install:
   - node --version
   - npm --version
-  - npm install -g elm@
+  - npm install -g elm@$ELM_VERSION
   - mv /usr/local/bin/elm-make /usr/local/bin/elm-make-old
   - printf '%s\n\n' '#!/bin/bash' 'echo "Running elm-make with sysconfcpus -n 2"' '/sysconfcpus/bin/sysconfcpus -n 2 elm-make-old "elm-safer-html"' > /usr/local/bin/elm-make
   - chmod +x /usr/local/bin/elm-make

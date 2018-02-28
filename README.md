@@ -1,4 +1,5 @@
-# Multiway trees and a zipper
+# Multiway trees and a zipper 
+[![Build Status](https://travis-ci.org/zwilias/elm-rosetree.svg?branch=master)](https://travis-ci.org/zwilias/elm-rosetree)
 
 This library provides a multiway tree (also known as rosetree) datastructure, 
 and a zipper to navigate through it.
