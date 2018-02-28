@@ -539,8 +539,8 @@ find : (a -> Bool) -> (Zipper a -> Maybe (Zipper a)) -> Zipper a -> Maybe (Zippe
 find predicate move zipper =
     case move zipper of
         Just next ->
-            if predicate (label zipper) then
-                Just zipper
+            if predicate (label next) then
+                Just next
             else
                 find predicate move next
 

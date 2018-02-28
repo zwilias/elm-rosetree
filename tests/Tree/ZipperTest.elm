@@ -54,19 +54,19 @@ find =
         [ test "find finds the thing" <|
             \_ ->
                 Zipper.fromTree tree
-                    |> Zipper.find (\t -> t == 99)
+                    |> Zipper.findNext (\t -> t == 99)
                     |> Maybe.map Zipper.tree
                     |> Expect.equal (Just <| Tree.singleton 99)
         , test "expect when it's not there" <|
             \_ ->
                 Zipper.fromTree tree
-                    |> Zipper.find ((==) 100)
+                    |> Zipper.findNext ((==) 100)
                     |> Expect.equal Nothing
         , test "searches within the focus" <|
             \_ ->
                 Zipper.fromTree tree
                     |> Zipper.lastChild
-                    |> Maybe.andThen (Zipper.find ((==) 2))
+                    |> Maybe.andThen (Zipper.findNext ((==) 2))
                     |> Maybe.map Zipper.tree
                     |> Expect.equal (Just <| Tree.singleton 2)
         ]
