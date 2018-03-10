@@ -20,6 +20,7 @@ module Tree
         , prependChild
         , replaceChildren
         , replaceLabel
+        , restructure
         , singleton
         , tree
         , unfold
@@ -69,9 +70,9 @@ children of their own, and so on.
 @docs map, indexedMap, mapAccumulate, map2, indexedMap2, mapAccumulate2, andMap
 
 
-# Unfold
+# Fancy stuff
 
-@docs unfold
+@docs unfold, restructure
 
 -}
 
@@ -667,4 +668,139 @@ type alias Map2Acc a b c =
     , todoR : List (Tree b)
     , done : List (Tree c)
     , label : c
+    }
+
+
+{-| Restructure a `Tree` into another type of structure.
+
+Imagine you have a `Tree String` and you can to turn it into nested `<ul>`s.
+This function can help!
+
+    import Html exposing (Html)
+
+
+    labelToHtml : String -> Html msg
+    labelToHtml l =
+        Html.text l
+
+
+    toListItems : Html msg -> List (Html msg) -> Html msg
+    toListItems label children =
+        case children of
+            [] ->
+                Html.li [] [ label ]
+            _ ->
+                Html.li []
+                    [ label
+                    , Html.ul [] children
+                    ]
+
+
+    tree "root"
+        [ tree "folder"
+            [ singleton "foo"
+            , singleton "bar"
+            ]
+        , singleton "yeah"
+        ]
+        |> restructure labelToHtml toListItems
+        |> \root -> Html.ul [] [ root ]
+    --> Html.ul []
+    -->     [ Html.li []
+    -->         [ Html.text "root"
+    -->         , Html.ul []
+    -->             [ Html.li []
+    -->                 [ Html.text "folder"
+    -->                 , Html.ul []
+    -->                     [ Html.li [] [ Html.text "foo" ]
+    -->                     , Html.li [] [ Html.text "bar" ]
+    -->                     ]
+    -->                 ]
+    -->             , Html.li [] [ Html.text "yeah" ]
+    -->             ]
+    -->         ]
+    -->     ]
+
+Or perhaps you have your own tree datastructure and you want to convert to it:
+
+    type MyTree a = MyTree a (List (MyTree a))
+
+
+    tree "root"
+        [ tree "folder"
+            [ singleton "foo"
+            , singleton "bar"
+            ]
+        , singleton "yeah"
+        ]
+        |> restructure identity MyTree
+    --> MyTree "root"
+    -->     [ MyTree "folder"
+    -->         [ MyTree "foo" []
+    -->         , MyTree "bar" []
+    -->         ]
+    -->     , MyTree "yeah" []
+    -->     ]
+
+-}
+restructure : (a -> b) -> (b -> List c -> c) -> Tree a -> c
+restructure convertLabel convertTree (Tree l c) =
+    restructureHelp convertLabel
+        convertTree
+        { todo = c
+        , label = convertLabel l
+        , done = []
+        }
+        []
+
+
+restructureHelp :
+    (a -> b)
+    -> (b -> List c -> c)
+    -> ReAcc a b c
+    -> List (ReAcc a b c)
+    -> c
+restructureHelp fLabel fTree acc stack =
+    case acc.todo of
+        [] ->
+            let
+                node =
+                    fTree acc.label (List.reverse acc.done)
+            in
+            case stack of
+                [] ->
+                    node
+
+                top :: rest ->
+                    restructureHelp
+                        fLabel
+                        fTree
+                        { top | done = node :: top.done }
+                        rest
+
+        (Tree l []) :: rest ->
+            restructureHelp
+                fLabel
+                fTree
+                { acc
+                    | todo = rest
+                    , done = fTree (fLabel l) [] :: acc.done
+                }
+                stack
+
+        (Tree l cs) :: rest ->
+            restructureHelp
+                fLabel
+                fTree
+                { todo = cs
+                , done = []
+                , label = fLabel l
+                }
+                ({ acc | todo = rest } :: stack)
+
+
+type alias ReAcc a b c =
+    { todo : List (Tree a)
+    , done : List c
+    , label : b
     }
