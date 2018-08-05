@@ -3,7 +3,7 @@
     "name": "zwilias/elm-rosetree",
     "summary": "Strict multiway trees aka rosetrees and a Zipper to go with them",
     "license": "BSD-3-Clause",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "exposed-modules": [
         "Tree",
         "Tree.Zipper"
