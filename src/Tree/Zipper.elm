@@ -670,18 +670,18 @@ nextSiblingOfAncestor zipper =
         Nothing ->
             Nothing
 
-        Just parent ->
-            case nextSibling parent of
+        Just parent_ ->
+            case nextSibling parent_ of
                 Nothing ->
-                    nextSiblingOfAncestor parent
+                    nextSiblingOfAncestor parent_
 
                 Just s ->
                     Just s
 
 
 reconstruct : Tree a -> Crumb a -> Tree a
-reconstruct focus { before, label, after } =
-    Tree.tree label (List.reverse before ++ [ focus ] ++ after)
+reconstruct focus c =
+    Tree.tree c.label (List.reverse c.before ++ [ focus ] ++ c.after)
 
 
 reconstructWithoutFocus : Crumb a -> Tree a
