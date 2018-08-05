@@ -371,18 +371,18 @@ unfoldHelp f acc stack =
 
         x :: xs ->
             case f x of
-                ( label, [] ) ->
+                ( label_, [] ) ->
                     unfoldHelp f
                         { acc
                             | todo = xs
-                            , done = singleton label :: acc.done
+                            , done = singleton label_ :: acc.done
                         }
                         stack
 
-                ( label, todo ) ->
+                ( label_, todo ) ->
                     unfoldHelp f
                         { todo = todo
-                        , label = label
+                        , label = label_
                         , done = []
                         }
                         ({ acc | todo = xs } :: stack)
@@ -493,27 +493,27 @@ mapAccumulateHelp f state acc stack =
 
         (Tree d []) :: rest ->
             let
-                ( state_, label ) =
+                ( state_, label_ ) =
                     f state d
             in
             mapAccumulateHelp f
                 state_
                 { acc
                     | todo = rest
-                    , done = Tree label [] :: acc.done
+                    , done = Tree label_ [] :: acc.done
                 }
                 stack
 
         (Tree d cs) :: rest ->
             let
-                ( state_, label ) =
+                ( state_, label_ ) =
                     f state d
             in
             mapAccumulateHelp f
                 state_
                 { todo = cs
                 , done = []
-                , label = label
+                , label = label_
                 }
                 ({ acc | todo = rest } :: stack)
 
@@ -650,7 +650,7 @@ mapAccumulate2Help f state acc stack =
 
         ( (Tree a xs) :: restL, (Tree b ys) :: restR ) ->
             let
-                ( state_, label ) =
+                ( state_, label_ ) =
                     f state a b
             in
             mapAccumulate2Help f
@@ -658,7 +658,7 @@ mapAccumulate2Help f state acc stack =
                 { todoL = xs
                 , todoR = ys
                 , done = []
-                , label = label
+                , label = label_
                 }
                 ({ acc | todoL = restL, todoR = restR } :: stack)
 
