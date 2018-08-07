@@ -19,6 +19,7 @@ module Tree.Zipper
         , parent
         , prepend
         , previousSibling
+        , removeTree
         , replaceLabel
         , replaceTree
         , root
@@ -44,7 +45,7 @@ modify the tree structure while walking through it.
 
 # Modification
 
-@docs mapTree, replaceTree, mapLabel, replaceLabel, append, prepend
+@docs mapTree, replaceTree, removeTree, mapLabel, replaceLabel, append, prepend
 
 
 # Utility
@@ -591,6 +592,23 @@ replaceTree t zipper =
     mapTree (always t) zipper
 
 
+{-| Return the parent (if any) of the currently focused tree, _without_ the
+currently focused tree.
+-}
+removeTree : Zipper a -> Maybe (Zipper a)
+removeTree (Zipper zipper) =
+    case zipper.crumbs of
+        [] ->
+            Nothing
+
+        crumb :: rest ->
+            Just <|
+                Zipper
+                    { focus = reconstructWithoutFocus crumb
+                    , crumbs = rest
+                    }
+
+
 {-| Map a function on the label of the currently focused tree.
 -}
 mapLabel : (a -> a) -> Zipper a -> Zipper a
@@ -664,6 +682,11 @@ nextSiblingOfAncestor zipper =
 reconstruct : Tree a -> Crumb a -> Tree a
 reconstruct focus { before, label, after } =
     Tree.tree label (List.reverse before ++ [ focus ] ++ after)
+
+
+reconstructWithoutFocus : Crumb a -> Tree a
+reconstructWithoutFocus { before, label, after } =
+    Tree.tree label (List.reverse before ++ after)
 
 
 withFocus : Tree a -> Zipper a -> Zipper a

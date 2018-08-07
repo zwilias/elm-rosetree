@@ -72,6 +72,41 @@ find =
         ]
 
 
+removeTree : Test
+removeTree =
+    describe "removeTree"
+        [ test "remove whole tree" <|
+            \_ ->
+                Zipper.fromTree tree
+                    |> Zipper.removeTree
+                    |> Expect.equal Nothing
+        , test "remove child" <|
+            \_ ->
+                let
+                    expectedTree : Tree Int
+                    expectedTree =
+                        Tree.tree 5
+                            [ Tree.tree 2
+                                [ Tree.tree 1 []
+                                , Tree.tree 2 []
+                                , Tree.tree 3 []
+                                ]
+                            , Tree.singleton 20
+                            , Tree.tree 3
+                                [ Tree.singleton 2
+                                , Tree.tree 4 [ Tree.singleton 7 ]
+                                , Tree.singleton 99
+                                ]
+                            ]
+                in
+                Zipper.fromTree tree
+                    |> Zipper.forward
+                    |> Maybe.andThen Zipper.removeTree
+                    |> Maybe.map Zipper.tree
+                    |> Expect.equal (Just expectedTree)
+        ]
+
+
 findFromRoot : Test
 findFromRoot =
     test "Searches from root" <|
