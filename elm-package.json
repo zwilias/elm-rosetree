@@ -1,5 +1,5 @@
 {
-    "version": "1.1.0",
+    "version": "1.2.0",
     "summary": "Strict multiway trees aka rosetrees and a Zipper to go with them",
     "repository": "https://github.com/zwilias/elm-rosetree.git",
     "license": "BSD3",
