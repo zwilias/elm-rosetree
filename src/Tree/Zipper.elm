@@ -665,8 +665,8 @@ reconstruct focus c =
 
 
 reconstructWithoutFocus : Crumb a -> Tree a
-reconstructWithoutFocus { before, label, after } =
-    Tree.tree label (List.reverse before ++ after)
+reconstructWithoutFocus c =
+    Tree.tree c.label (List.reverse c.before ++ c.after)
 
 
 withFocus : Tree a -> Zipper a -> Zipper a
