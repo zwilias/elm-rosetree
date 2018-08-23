@@ -1,31 +1,9 @@
-module Tree.Zipper
-    exposing
-        ( Zipper
-        , append
-        , backward
-        , children
-        , findFromRoot
-        , findNext
-        , findPrevious
-        , firstChild
-        , forward
-        , fromTree
-        , label
-        , lastChild
-        , lastDescendant
-        , mapLabel
-        , mapTree
-        , nextSibling
-        , parent
-        , prepend
-        , previousSibling
-        , removeTree
-        , replaceLabel
-        , replaceTree
-        , root
-        , toTree
-        , tree
-        )
+module Tree.Zipper exposing
+    ( Zipper, fromTree, toTree, tree, label, children
+    , firstChild, lastChild, parent, forward, backward, root, lastDescendant, nextSibling, previousSibling
+    , mapTree, replaceTree, removeTree, mapLabel, replaceLabel, append, prepend
+    , findNext, findPrevious, findFromRoot
+    )
 
 {-| Imagine walking through a `Tree` structure. You can step from a node to its
 parent, its children or one of its sibling. At every step of the way, you're "at"
@@ -542,6 +520,7 @@ find predicate move zipper =
         Just next ->
             if predicate (label next) then
                 Just next
+
             else
                 find predicate move next
 
@@ -560,6 +539,7 @@ findFromRoot f zipper =
     in
     if f (label r) then
         Just r
+
     else
         findNext f r
 

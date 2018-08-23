@@ -1,4 +1,4 @@
-module TreeTest exposing (..)
+module TreeTest exposing (flattenTest, foldlTest, foldrTest, indexedMap, indexedMap2, lengthTest, map2, mapTest, unfold)
 
 import Expect
 import Fuzz as F
@@ -276,11 +276,11 @@ indexedMap2 =
 
                 g : Int -> ( String, List Int )
                 g x =
-                    f x |> Tuple.mapFirst toString
+                    f x |> Tuple.mapFirst String.fromInt
 
                 h : Int -> ( ( Int, String ), List Int )
                 h x =
-                    ( ( x, toString x ), List.range 0 (x - 1) )
+                    ( ( x, String.fromInt x ), List.range 0 (x - 1) )
 
                 left : Tree Int
                 left =

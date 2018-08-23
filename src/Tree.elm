@@ -1,30 +1,10 @@
-module Tree
-    exposing
-        ( Tree
-        , andMap
-        , appendChild
-        , children
-        , count
-        , flatten
-        , foldl
-        , foldr
-        , indexedMap
-        , indexedMap2
-        , label
-        , map
-        , map2
-        , mapAccumulate
-        , mapAccumulate2
-        , mapChildren
-        , mapLabel
-        , prependChild
-        , replaceChildren
-        , replaceLabel
-        , restructure
-        , singleton
-        , tree
-        , unfold
-        )
+module Tree exposing
+    ( Tree, singleton, tree, label, children
+    , mapLabel, replaceLabel, mapChildren, replaceChildren, prependChild, appendChild
+    , foldl, foldr, count, flatten
+    , map, indexedMap, mapAccumulate, map2, indexedMap2, mapAccumulate2, andMap
+    , unfold, restructure
+    )
 
 {-| A multiway tree or rosetree is a labeled tree where each node can have zero,
 one or more children, each of which represents a tree in its own right.
