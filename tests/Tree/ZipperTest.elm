@@ -1,4 +1,4 @@
-module Tree.ZipperTest exposing (..)
+module Tree.ZipperTest exposing (Motion, applyMotions, backward, find, findFromRoot, lastDescendant, motions, rootOfAnyMotionIsSame, tree, treeOfInitIsSelf)
 
 import Expect
 import Fuzz exposing (Fuzzer)
@@ -147,8 +147,8 @@ type alias Motion a =
 
 
 applyMotions : List (Motion a) -> Zipper a -> Zipper a
-applyMotions motions zipper =
-    case motions of
+applyMotions motionsToApply zipper =
+    case motionsToApply of
         [] ->
             zipper
 

@@ -1,15 +1,10 @@
 {
   "dependencies": {
-    "elm-coverage": "^0.1.7",
-    "elm-format": "^0.7.0-exp",
-    "elm-test": "^0.18.12",
-    "elm-verify-examples": "^2.3.1"
+    "elm": "^0.19.0",
+    "elm-format": "^0.8.0",
+    "elm-test": "^0.19.0-beta4"
   },
   "scripts": {
-    "tests": "elm-test",
-    "coverage": "elm-coverage",
-    "examples": "elm-verify-examples",
-    "format": "elm-format --validate src",
-    "test": "npm run format && npm run examples && npm run tests"
+    "test": "elm-format --validate src && elm-test"
   }
 }

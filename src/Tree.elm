@@ -1,30 +1,10 @@
-module Tree
-    exposing
-        ( Tree
-        , andMap
-        , appendChild
-        , children
-        , count
-        , flatten
-        , foldl
-        , foldr
-        , indexedMap
-        , indexedMap2
-        , label
-        , map
-        , map2
-        , mapAccumulate
-        , mapAccumulate2
-        , mapChildren
-        , mapLabel
-        , prependChild
-        , replaceChildren
-        , replaceLabel
-        , restructure
-        , singleton
-        , tree
-        , unfold
-        )
+module Tree exposing
+    ( Tree, singleton, tree, label, children
+    , mapLabel, replaceLabel, mapChildren, replaceChildren, prependChild, appendChild
+    , foldl, foldr, count, flatten
+    , map, indexedMap, mapAccumulate, map2, indexedMap2, mapAccumulate2, andMap
+    , unfold, restructure
+    )
 
 {-| A multiway tree or rosetree is a labeled tree where each node can have zero,
 one or more children, each of which represents a tree in its own right.
@@ -371,18 +351,18 @@ unfoldHelp f acc stack =
 
         x :: xs ->
             case f x of
-                ( label, [] ) ->
+                ( label_, [] ) ->
                     unfoldHelp f
                         { acc
                             | todo = xs
-                            , done = singleton label :: acc.done
+                            , done = singleton label_ :: acc.done
                         }
                         stack
 
-                ( label, todo ) ->
+                ( label_, todo ) ->
                     unfoldHelp f
                         { todo = todo
-                        , label = label
+                        , label = label_
                         , done = []
                         }
                         ({ acc | todo = xs } :: stack)
@@ -493,27 +473,27 @@ mapAccumulateHelp f state acc stack =
 
         (Tree d []) :: rest ->
             let
-                ( state_, label ) =
+                ( state_, label_ ) =
                     f state d
             in
             mapAccumulateHelp f
                 state_
                 { acc
                     | todo = rest
-                    , done = Tree label [] :: acc.done
+                    , done = Tree label_ [] :: acc.done
                 }
                 stack
 
         (Tree d cs) :: rest ->
             let
-                ( state_, label ) =
+                ( state_, label_ ) =
                     f state d
             in
             mapAccumulateHelp f
                 state_
                 { todo = cs
                 , done = []
-                , label = label
+                , label = label_
                 }
                 ({ acc | todo = rest } :: stack)
 
@@ -650,7 +630,7 @@ mapAccumulate2Help f state acc stack =
 
         ( (Tree a xs) :: restL, (Tree b ys) :: restR ) ->
             let
-                ( state_, label ) =
+                ( state_, label_ ) =
                     f state a b
             in
             mapAccumulate2Help f
@@ -658,7 +638,7 @@ mapAccumulate2Help f state acc stack =
                 { todoL = xs
                 , todoR = ys
                 , done = []
-                , label = label
+                , label = label_
                 }
                 ({ acc | todoL = restL, todoR = restR } :: stack)
 
