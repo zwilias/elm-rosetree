@@ -305,7 +305,7 @@ has the number of children mentioned in the label, recursively.
 
     unfolder : Int -> (String, List Int)
     unfolder x =
-        ( toString x, List.range 0 (x - 1) )
+        ( String.fromInt x, List.range 0 (x - 1) )
 
 
     unfold unfolder 3
@@ -382,7 +382,7 @@ type alias UnfoldAcc a b =
         , tree 3 [ singleton 4 ]
         , singleton 5
         ]
-        |> map (\x -> toString (x * 2))
+        |> map (\x -> String.fromInt (x * 2))
     --> tree "2"
     -->     [ singleton "4"
     -->     , tree "6" [ singleton "8" ]
@@ -404,7 +404,7 @@ map f t =
         , tree "baz" [ singleton "hello", singleton "world" ]
         , singleton "qlux"
         ]
-        |> indexedMap (\idx val -> toString idx ++ " - " ++ val)
+        |> indexedMap (\idx val -> String.fromInt idx ++ " - " ++ val)
     --> tree "0 - foo"
     -->     [ singleton "1 - bar"
     -->     , tree "2 - baz"
@@ -427,7 +427,7 @@ indexedMap f t =
         [ singleton 2
         , tree 3 [ singleton 4 ]
         ]
-        |> mapAccumulate (\acc label -> ( acc + label, toString label)) 0
+        |> mapAccumulate (\acc label -> ( acc + label, String.fromInt label)) 0
     --> ( 10
     --> , tree "1"
     -->     [ singleton "2"
