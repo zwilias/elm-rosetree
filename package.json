@@ -6,6 +6,6 @@
     "elm-verify-examples": "^3.0.0"
   },
   "scripts": {
-    "test": "elm-format --validate src && elm-verify-examples && elm-test"
+    "test": "elm-format --validate src && elm-test && elm-verify-examples"
   }
 }
