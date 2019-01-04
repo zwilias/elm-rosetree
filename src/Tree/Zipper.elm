@@ -1,5 +1,5 @@
 module Tree.Zipper exposing
-    ( Zipper, fromTree, toTree, tree, label, children
+    ( Zipper, fromTree, fromForest, toTree, toForest, tree, label, children
     , firstChild, lastChild, parent, forward, backward, root, lastDescendant, nextSibling, previousSibling
     , mapTree, replaceTree, removeTree, mapLabel, replaceLabel, append, prepend
     , findNext, findPrevious, findFromRoot
@@ -13,7 +13,7 @@ modify the tree structure while walking through it.
 
 # Structure
 
-@docs Zipper, fromTree, toTree, tree, label, children
+@docs Zipper, fromTree, fromForest, toTree, toForest, tree, label, children
 
 
 # Navigation
@@ -39,12 +39,17 @@ import Tree exposing (Tree)
 its descendant trees.
 -}
 type Zipper a
-    = Zipper { focus : Tree a, crumbs : List (Crumb a) }
+    = Zipper
+        { focus : Tree a
+        , before : List (Tree a)
+        , after : List (Tree a)
+        , crumbs : List (Crumb a)
+        }
 
 
 type alias Crumb a =
-    { before : List (Tree a)
-    , label : a
+    { label : a
+    , before : List (Tree a)
     , after : List (Tree a)
     }
 
@@ -70,10 +75,29 @@ zipper with the given tree as its root.
 -}
 fromTree : Tree a -> Zipper a
 fromTree t =
-    Zipper { focus = t, crumbs = [] }
+    Zipper { focus = t, before = [], after = [], crumbs = [] }
+
+
+{-| Every once in a while, we'll start at a tree that has siblings, but no
+parent.
+
+    import Tree
+
+
+    fromForest (Tree.singleton "first") [ Tree.singleton "second" ]
+        |> nextSibling
+        |> Maybe.map label
+    --> Just "second"
+
+-}
+fromForest : Tree a -> List (Tree a) -> Zipper a
+fromForest t ts =
+    Zipper { focus = t, before = [], after = ts, crumbs = [] }
 
 
 {-| `toTree` rebuilds the tree to its root, and returns that.
+
+Note that if the root has siblings, these end up being ignored!
 
     import Tree exposing (Tree)
 
@@ -99,6 +123,32 @@ fromTree t =
 toTree : Zipper a -> Tree a
 toTree =
     tree << root
+
+
+{-| Occasionally, we'll want to rebuild the forest, returning the "root" and its
+subsequent siblings.
+
+    import Tree
+
+    Tree.singleton "root"
+        |> fromTree
+        |> prepend (Tree.singleton "before")
+        |> append (Tree.singleton "after")
+        |> toForest
+    --> ( Tree.singleton "before"
+    --> , [ Tree.singleton "root"
+    -->   , Tree.singleton "after"
+    -->   ]
+    --> )
+
+-}
+toForest : Zipper a -> ( Tree a, List (Tree a) )
+toForest input =
+    let
+        (Zipper { focus, after }) =
+            root input
+    in
+    ( focus, after )
 
 
 {-| Sometimes you don't want to extract the tree from the root, but just look at
@@ -261,7 +311,9 @@ parent (Zipper zipper) =
         crumb :: rest ->
             Just <|
                 Zipper
-                    { focus = reconstruct zipper.focus crumb
+                    { focus = reconstruct zipper.focus zipper.before zipper.after crumb.label
+                    , before = crumb.before
+                    , after = crumb.after
                     , crumbs = rest
                     }
 
@@ -287,20 +339,24 @@ If the current tree is a singeton, this returns `Nothing`.
 
 -}
 firstChild : Zipper a -> Maybe (Zipper a)
-firstChild zipper =
-    case children zipper of
+firstChild (Zipper zipper) =
+    case Tree.children zipper.focus of
         [] ->
             Nothing
 
         c :: cs ->
-            zipper
-                |> withFocus c
-                |> addCrumb
-                    { before = []
-                    , label = label zipper
+            Just <|
+                Zipper
+                    { focus = c
+                    , before = []
                     , after = cs
+                    , crumbs =
+                        { label = Tree.label zipper.focus
+                        , before = zipper.before
+                        , after = zipper.after
+                        }
+                            :: zipper.crumbs
                     }
-                |> Just
 
 
 {-| If the current tree has children, move to the last of those.
@@ -332,20 +388,24 @@ firstChild zipper =
 
 -}
 lastChild : Zipper a -> Maybe (Zipper a)
-lastChild zipper =
-    case List.reverse <| children zipper of
+lastChild (Zipper zipper) =
+    case List.reverse <| Tree.children zipper.focus of
         [] ->
             Nothing
 
         c :: rest ->
-            zipper
-                |> withFocus c
-                |> addCrumb
-                    { before = rest
-                    , label = label zipper
+            Just <|
+                Zipper
+                    { focus = c
+                    , before = rest
                     , after = []
+                    , crumbs =
+                        { label = Tree.label zipper.focus
+                        , before = zipper.before
+                        , after = zipper.after
+                        }
+                            :: zipper.crumbs
                     }
-                |> Just
 
 
 {-| From anywhere, this zooms back up to the root of the tree.
@@ -355,17 +415,23 @@ succeeds.
 
 -}
 root : Zipper a -> Zipper a
-root (Zipper zipper) =
-    case zipper.crumbs of
-        [] ->
-            Zipper zipper
+root zipper =
+    case parent zipper of
+        Nothing ->
+            firstSibling zipper
 
-        crumb :: rest ->
-            root <|
-                Zipper
-                    { focus = reconstruct zipper.focus crumb
-                    , crumbs = rest
-                    }
+        Just z ->
+            root z
+
+
+firstSibling : Zipper a -> Zipper a
+firstSibling zipper =
+    case previousSibling zipper of
+        Nothing ->
+            zipper
+
+        Just z ->
+            firstSibling z
 
 
 isRoot : Zipper a -> Bool
@@ -446,26 +512,18 @@ more siblings left.
 -}
 nextSibling : Zipper a -> Maybe (Zipper a)
 nextSibling (Zipper zipper) =
-    case zipper.crumbs of
-        crumb :: rest ->
-            case crumb.after of
-                [] ->
-                    Nothing
-
-                next :: after ->
-                    Just <|
-                        Zipper
-                            { focus = next
-                            , crumbs =
-                                { crumb
-                                    | before = zipper.focus :: crumb.before
-                                    , after = after
-                                }
-                                    :: rest
-                            }
-
-        _ ->
+    case zipper.after of
+        [] ->
             Nothing
+
+        next :: rest ->
+            Just <|
+                Zipper
+                    { focus = next
+                    , before = zipper.focus :: zipper.before
+                    , after = rest
+                    , crumbs = zipper.crumbs
+                    }
 
 
 {-| Not too surprisingly, moves to the previous sibling if there are any.
@@ -476,26 +534,18 @@ root.
 -}
 previousSibling : Zipper a -> Maybe (Zipper a)
 previousSibling (Zipper zipper) =
-    case zipper.crumbs of
-        crumb :: rest ->
-            case crumb.before of
-                [] ->
-                    Nothing
-
-                previous :: before ->
-                    Just <|
-                        Zipper
-                            { focus = previous
-                            , crumbs =
-                                { crumb
-                                    | before = before
-                                    , after = zipper.focus :: crumb.after
-                                }
-                                    :: rest
-                            }
-
-        _ ->
+    case zipper.before of
+        [] ->
             Nothing
+
+        previous :: rest ->
+            Just <|
+                Zipper
+                    { focus = previous
+                    , before = rest
+                    , after = zipper.focus :: zipper.after
+                    , crumbs = zipper.crumbs
+                    }
 
 
 {-| Looks for a matching tree _after_ the current focus, using `forward` to
@@ -568,8 +618,8 @@ mapTree f (Zipper zipper) =
 {-| Replace the currently focused tree in the zipper with a different one.
 -}
 replaceTree : Tree a -> Zipper a -> Zipper a
-replaceTree t zipper =
-    mapTree (always t) zipper
+replaceTree t (Zipper zipper) =
+    Zipper { zipper | focus = t }
 
 
 {-| Return the parent (if any) of the currently focused tree, _without_ the
@@ -584,7 +634,9 @@ removeTree (Zipper zipper) =
         crumb :: rest ->
             Just <|
                 Zipper
-                    { focus = reconstructWithoutFocus crumb
+                    { focus = reconstructWithoutFocus crumb.label zipper.before zipper.after
+                    , before = crumb.before
+                    , after = crumb.after
                     , crumbs = rest
                     }
 
@@ -603,30 +655,18 @@ replaceLabel l zipper =
     mapLabel (always l) zipper
 
 
-{-| Prepend a tree as a sibling _before_ the currently focused tree. If the
-current tree is the root, this is a no-op.
+{-| Prepend a tree as a sibling _before_ the currently focused tree.
 -}
 prepend : Tree a -> Zipper a -> Zipper a
 prepend t (Zipper zipper) =
-    case zipper.crumbs of
-        [] ->
-            Zipper zipper
-
-        crumb :: rs ->
-            Zipper { zipper | crumbs = { crumb | before = t :: crumb.before } :: rs }
+    Zipper { zipper | before = t :: zipper.before }
 
 
-{-| Append a tree as a sibling _after_ the currently focused tree. If the current
-tree is the root, this is a no-op.
+{-| Append a tree as a sibling _after_ the currently focused tree.
 -}
 append : Tree a -> Zipper a -> Zipper a
 append t (Zipper zipper) =
-    case zipper.crumbs of
-        [] ->
-            Zipper zipper
-
-        crumb :: rs ->
-            Zipper { zipper | crumbs = { crumb | after = t :: crumb.after } :: rs }
+    Zipper { zipper | after = t :: zipper.after }
 
 
 firstOf : List (a -> Maybe b) -> a -> Maybe b
@@ -659,14 +699,14 @@ nextSiblingOfAncestor zipper =
                     Just s
 
 
-reconstruct : Tree a -> Crumb a -> Tree a
-reconstruct focus c =
-    Tree.tree c.label (List.reverse c.before ++ [ focus ] ++ c.after)
+reconstruct : Tree a -> List (Tree a) -> List (Tree a) -> a -> Tree a
+reconstruct focus before after l =
+    Tree.tree l (List.reverse before ++ [ focus ] ++ after)
 
 
-reconstructWithoutFocus : Crumb a -> Tree a
-reconstructWithoutFocus c =
-    Tree.tree c.label (List.reverse c.before ++ c.after)
+reconstructWithoutFocus : a -> List (Tree a) -> List (Tree a) -> Tree a
+reconstructWithoutFocus l before after =
+    Tree.tree l (List.reverse before ++ after)
 
 
 withFocus : Tree a -> Zipper a -> Zipper a
