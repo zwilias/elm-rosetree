@@ -622,22 +622,111 @@ replaceTree t (Zipper zipper) =
     Zipper { zipper | focus = t }
 
 
-{-| Return the parent (if any) of the currently focused tree, _without_ the
-currently focused tree.
+{-| Remove currently focused tree and return the parent, a previous sibling or a next sibling of it. If there is neither,
+return `Nothing`.
+
+    import Tree exposing (Tree)
+    import Tree.Zipper as Zipper exposing (Zipper)
+
+    myTree : Tree Int
+    myTree =
+        Tree.tree 0
+            [ Tree.tree 1
+                [ Tree.singleton 2
+                , Tree.singleton 3
+                ]
+            , Tree.tree 4
+                [ Tree.singleton 5 ]
+            ]
+
+
+    fromTree myTree
+        |> lastDescendant
+        |> removeTree
+        |> Maybe.map label
+    --> Just 4
+
+
+    myForest : (Tree Int, List (Tree Int))
+    myForest =
+        ( Tree.tree 0
+              [ Tree.singleton 1
+              , Tree.singleton 2
+              , Tree.singleton 3
+              ]
+        , [ Tree.singleton 4
+          , Tree.singleton 5
+          , Tree.singleton 6
+          ]
+        )
+
+
+    fromForest (Tuple.first myForest) (Tuple.second myForest)
+        |> findFromRoot ((==) 1)
+        |> Maybe.andThen removeTree
+        |> Maybe.map label
+    --> Just 0
+
+
+    fromForest (Tuple.first myForest) (Tuple.second myForest)
+        |> findFromRoot ((==) 4)
+        |> Maybe.andThen removeTree
+        |> Maybe.map label
+    --> Just 0
+
+
+    fromForest (Tuple.first myForest) (Tuple.second myForest)
+        |> removeTree
+        |> Maybe.map label
+    --> Just 4
+
+
+    fromForest (Tuple.first myForest) (Tuple.second myForest)
+        |> removeTree
+        |> Maybe.andThen nextSibling
+        |> Maybe.map label
+    --> Just 5
+
+
+    fromForest (Tuple.first myForest) (Tuple.second myForest)
+        |> findFromRoot ((==) 6)
+        |> Maybe.andThen removeTree
+        |> Maybe.andThen previousSibling
+        |> Maybe.map label
+    --> Just 4
+
 -}
 removeTree : Zipper a -> Maybe (Zipper a)
 removeTree (Zipper zipper) =
-    case zipper.crumbs of
-        [] ->
+    case ( zipper.crumbs, zipper.before, zipper.after ) of
+        ( [], [], [] ) ->
             Nothing
 
-        crumb :: rest ->
+        ( crumb :: rest, before, after ) ->
             Just <|
                 Zipper
-                    { focus = reconstructWithoutFocus crumb.label zipper.before zipper.after
+                    { focus = reconstructWithoutFocus crumb.label before after
                     , before = crumb.before
                     , after = crumb.after
                     , crumbs = rest
+                    }
+
+        ( [], b :: bs, after ) ->
+            Just <|
+                Zipper
+                    { focus = b
+                    , before = bs
+                    , after = after
+                    , crumbs = []
+                    }
+
+        ( [], [], a :: as_ ) ->
+            Just <|
+                Zipper
+                    { focus = a
+                    , before = []
+                    , after = as_
+                    , crumbs = []
                     }
 
 
