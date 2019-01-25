@@ -1,9 +1,9 @@
 module Tree.Zipper exposing
     ( Zipper, fromTree, fromForest, toTree, toForest, tree, label, children
     , firstChild, lastChild, parent, forward, backward, root, lastDescendant, nextSibling, previousSibling
+    , siblingsBeforeFocus, siblingsAfterFocus
     , mapTree, replaceTree, removeTree, mapLabel, replaceLabel, append, prepend
     , findNext, findPrevious, findFromRoot
-    , siblingsAfterFocus, siblingsBeforeFocus
     )
 
 {-| Imagine walking through a `Tree` structure. You can step from a node to its
@@ -20,6 +20,11 @@ modify the tree structure while walking through it.
 # Navigation
 
 @docs firstChild, lastChild, parent, forward, backward, root, lastDescendant, nextSibling, previousSibling
+
+
+# Location
+
+@docs siblingsBeforeFocus, siblingsAfterFocus
 
 
 # Modification
@@ -433,36 +438,6 @@ firstSibling zipper =
 
         Just z ->
             firstSibling z
-
-
-isRoot : Zipper a -> Bool
-isRoot (Zipper { crumbs }) =
-    List.isEmpty crumbs
-
-
-isFirst : Zipper a -> Bool
-isFirst (Zipper { crumbs }) =
-    case crumbs of
-        { before } :: _ ->
-            List.isEmpty before
-
-        _ ->
-            False
-
-
-isLast : Zipper a -> Bool
-isLast (Zipper { crumbs }) =
-    case crumbs of
-        { after } :: _ ->
-            List.isEmpty after
-
-        _ ->
-            False
-
-
-hasChildren : Zipper a -> Bool
-hasChildren =
-    List.isEmpty << children
 
 
 {-| The inverse of `root`. Think of it as repeating `lastChild` as long as it
