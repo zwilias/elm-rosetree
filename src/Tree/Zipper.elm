@@ -3,6 +3,7 @@ module Tree.Zipper exposing
     , firstChild, lastChild, parent, forward, backward, root, lastDescendant, nextSibling, previousSibling
     , mapTree, replaceTree, removeTree, mapLabel, replaceLabel, append, prepend
     , findNext, findPrevious, findFromRoot
+    , siblingsAfterFocus, siblingsBeforeFocus
     )
 
 {-| Imagine walking through a `Tree` structure. You can step from a node to its
@@ -606,6 +607,105 @@ label zipper =
 children : Zipper a -> List (Tree a)
 children zipper =
     Tree.children <| tree zipper
+
+
+{-| The siblings before the currently focused tree.
+
+    import Tree exposing (Tree)
+    import Tree.Zipper as Zipper exposing (Zipper)
+
+    myTree : Tree Int
+    myTree =
+        Tree.tree 0
+            [ Tree.singleton 1
+            , Tree.singleton 2
+            , Tree.singleton 3
+            ]
+
+
+    fromTree myTree
+        |> forward
+        |> Maybe.map siblingsBeforeFocus
+        |> Maybe.map (List.map Tree.label)
+    --> Just []
+
+
+    fromTree myTree
+        |> lastDescendant
+        |> siblingsBeforeFocus
+        |> List.map Tree.label
+    --> [1, 2]
+
+
+    myForest : (Tree Int, List (Tree Int))
+    myForest =
+        ( Tree.singleton 0
+        , [ Tree.singleton 4
+          , Tree.singleton 5
+          , Tree.singleton 6
+          ]
+        )
+
+
+    fromForest (Tuple.first myForest) (Tuple.second myForest)
+        |> findFromRoot ((==) 4)
+        |> Maybe.map siblingsBeforeFocus
+        |> Maybe.map  (List.map Tree.label)
+    --> Just [0]
+
+-}
+siblingsBeforeFocus : Zipper a -> List (Tree a)
+siblingsBeforeFocus (Zipper { before }) =
+    List.reverse before
+
+
+{-| The siblings after the currently focused tree.
+
+    import Tree exposing (Tree)
+    import Tree.Zipper as Zipper exposing (Zipper)
+
+    myTree : Tree Int
+    myTree =
+        Tree.tree 0
+            [ Tree.singleton 1
+            , Tree.singleton 2
+            , Tree.singleton 3
+            ]
+
+
+    fromTree myTree
+        |> forward
+        |> Maybe.map siblingsAfterFocus
+        |> Maybe.map (List.map Tree.label)
+    --> Just [2, 3]
+
+
+    fromTree myTree
+        |> lastDescendant
+        |> siblingsAfterFocus
+        |> List.map Tree.label
+    --> []
+
+
+    myForest : (Tree Int, List (Tree Int))
+    myForest =
+        ( Tree.singleton 0
+        , [ Tree.singleton 4
+          , Tree.singleton 5
+          , Tree.singleton 6
+          ]
+        )
+
+
+    fromForest (Tuple.first myForest) (Tuple.second myForest)
+        |> siblingsAfterFocus
+        |> List.map Tree.label
+    --> [4, 5, 6]
+
+-}
+siblingsAfterFocus : Zipper a -> List (Tree a)
+siblingsAfterFocus (Zipper { after }) =
+    after
 
 
 {-| Execute a function on the currently focused tree, replacing it in the zipper.
