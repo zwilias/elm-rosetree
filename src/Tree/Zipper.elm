@@ -871,13 +871,3 @@ reconstruct focus before after l =
 reconstructWithoutFocus : a -> List (Tree a) -> List (Tree a) -> Tree a
 reconstructWithoutFocus l before after =
     Tree.tree l (List.reverse before ++ after)
-
-
-withFocus : Tree a -> Zipper a -> Zipper a
-withFocus focus (Zipper zipper) =
-    Zipper { zipper | focus = focus }
-
-
-addCrumb : Crumb a -> Zipper a -> Zipper a
-addCrumb crumb (Zipper zipper) =
-    Zipper { zipper | crumbs = crumb :: zipper.crumbs }
