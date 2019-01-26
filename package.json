@@ -7,6 +7,6 @@
     "elm-xref": "^0.3.2"
   },
   "scripts": {
-    "test": "elm-xref && elm-format --validate src && elm-test && elm-verify-examples"
+    "test": "elm make && elm-xref && elm-format --validate src && elm-test && elm-verify-examples"
   }
 }
