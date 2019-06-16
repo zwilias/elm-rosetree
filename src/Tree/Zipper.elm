@@ -2,7 +2,7 @@ module Tree.Zipper exposing
     ( Zipper, fromTree, fromForest, toTree, toForest, tree, label, children
     , firstChild, lastChild, parent, forward, backward, root, lastDescendant, nextSibling, previousSibling
     , siblingsBeforeFocus, siblingsAfterFocus
-    , mapTree, replaceTree, removeTree, mapLabel, replaceLabel, append, prepend
+    , map, mapTree, replaceTree, removeTree, mapLabel, replaceLabel, append, prepend
     , findNext, findPrevious, findFromRoot
     )
 
@@ -29,7 +29,7 @@ modify the tree structure while walking through it.
 
 # Modification
 
-@docs mapTree, replaceTree, removeTree, mapLabel, replaceLabel, append, prepend
+@docs map, mapTree, replaceTree, removeTree, mapLabel, replaceLabel, append, prepend
 
 
 # Utility
@@ -803,6 +803,63 @@ removeTree (Zipper zipper) =
                     , after = as_
                     , crumbs = []
                     }
+
+
+{-| Just like `Tree.map` but preserves focus
+
+    import Tree exposing (Tree)
+    import Tree.Zipper as Zipper exposing (Zipper)
+
+    myTree : Tree Int
+    myTree =
+        Tree.tree 0
+            [ Tree.tree 1
+                [ Tree.singleton 2
+                , Tree.singleton 3
+                ]
+            , Tree.tree 4
+                [ Tree.singleton 5 ]
+            ]
+
+    myZipper : Maybe (Zipper Int)
+    myZipper =
+        myTree
+            |> fromTree
+            |> findNext ((==) 4)
+            |> Maybe.map (map ((+) 1))
+
+    myZipper
+        |> Maybe.map label
+    --> Just 5
+
+    myZipper
+        |> Maybe.andThen firstChild
+        |> Maybe.map label
+    --> Just 6
+
+
+    myZipper
+        |> Maybe.andThen parent
+        |> Maybe.map label
+    --> Just 1
+
+-}
+map : (a -> b) -> Zipper a -> Zipper b
+map f (Zipper { focus, before, after, crumbs }) =
+    Zipper
+        { focus = Tree.map f focus
+        , before = List.map (Tree.map f) before
+        , after = List.map (Tree.map f) after
+        , crumbs = List.map (mapCrumb f) crumbs
+        }
+
+
+mapCrumb : (a -> b) -> Crumb a -> Crumb b
+mapCrumb f crumb =
+    { label = f crumb.label
+    , before = List.map (Tree.map f) crumb.before
+    , after = List.map (Tree.map f) crumb.after
+    }
 
 
 {-| Map a function on the label of the currently focused tree.
