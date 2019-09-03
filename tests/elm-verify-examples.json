@@ -1,4 +1,4 @@
 {
   "root": "../src",
-  "tests": ["Tree", "Tree.Zipper"]
+  "tests": ["Tree", "Tree.Zipper", "Tree.Diff"]
 }
