@@ -11,7 +11,7 @@ diffTest : Test
 diffTest =
     test "example" <|
         \_ ->
-            diff (==)
+            diff
                 (tree "root"
                     [ tree "folder"
                         [ singleton "foo"
@@ -64,5 +64,5 @@ sameTree =
                 t =
                     Tree.unfold f 5
             in
-            diff (==) t t
+            diff t t
                 |> Expect.equal (Keep t)
