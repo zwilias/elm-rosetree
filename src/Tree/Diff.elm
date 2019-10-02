@@ -258,8 +258,7 @@ diffHelp eq acc stack =
                     stack
 
 
-{-| TODO
--}
+{-| -}
 mergeWith : (a -> a -> Bool) -> Tree a -> Tree a -> Tree a
 mergeWith eq left right =
     if eq (Tree.label left) (Tree.label right) then
@@ -276,7 +275,37 @@ mergeWith eq left right =
         right
 
 
-{-| TODO
+{-| Has the same relation to `mergeWith` as `diffBy` has to `diffWith`.
+
+    import Tree.Diff as Diff
+    import Tree exposing (tree, singleton)
+
+    Diff.mergeBy Tuple.second
+        (tree ( 1, "root" )
+            [ tree ( 1, "folder" )
+                [ singleton ( 1, "foo" )
+                , singleton ( 1, "bar" )
+                ]
+            , singleton ( 1, "yeah" )
+            , singleton ( 1, "keep me!" )
+            ]
+        )
+        (tree ( 2, "root" )
+            [ tree ( 2, "folder" )
+                [ singleton ( 2, "foo" ) ]
+            , tree ( 2, "folder2" )
+                [ singleton ( 2, "nice" ) ]
+            , singleton ( 2, "keep me!" )
+            ]
+        )
+    --> tree ( 1, "root" )
+    -->     [ tree ( 1, "folder" )
+    -->         [ singleton ( 1, "foo" ) ]
+    -->     , tree ( 2, "folder2" )
+    -->         [ singleton ( 2, "nice" ) ]
+    -->     , singleton ( 1, "keep me!" )
+    -->     ]
+
 -}
 mergeBy : (a -> b) -> Tree a -> Tree a -> Tree a
 mergeBy f =
