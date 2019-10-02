@@ -1,13 +1,14 @@
 module Tree.Diff exposing
     ( Diff(..), Patch(..)
-    , diff, diffWith
+    , diff, diffWith, diffBy
+    , mergeBy, mergeWith
     )
 
-{-| A representation of the differences between two trees.
+{-| Diffing and merging trees
 
-Keep in mind that this a rather naive implementation: as soon as any label is
-considered different, the whole subtree is considered different. Likewise,
-changes in "level" are considered replacements.
+The `Tree.Diff` module offers datastructures and function to handle diffing and
+merging trees. A diff represents the abstract action that need to be taken to go
+from one tree to another. Merging trees allows actually executing these actions.
 
 
 ## Data types
@@ -17,7 +18,17 @@ changes in "level" are considered replacements.
 
 ## Diffing
 
-@docs diff, diffWith
+@docs diff, diffWith, diffBy
+
+
+## Merging
+
+**Note:** Merging trees according to the diff structure described here using
+regular equality on the labels will always result in the second tree being
+returned. For that reason, only `mergeWith` and `mergeBy` exist: `merge a b = b`
+feels like a silly function to offer!
+
+@docs mergeWith mergeBy
 
 -}
 
@@ -129,7 +140,24 @@ diffWith eq left right =
         Patch (Replace left right)
 
 
-type alias Acc a =
+{-| Diff using regular equality on a derived property of the label.
+
+This is related to `diffWith` in the same way `List.sortBy` is related to
+`List.sortWith`. Imagine, for example, that your labels are tuples and you're
+only interested in the second value.
+
+You could either write `diffWith (\(_, x) (_, y) -> x == y) left right` or the
+equivalent but much simple `diffBy Tuple.second`.
+
+If you find yourself being worried about performance: Please benchmark!
+
+-}
+diffBy : (a -> b) -> Tree a -> Tree a -> Diff a
+diffBy f =
+    diffWith (\left right -> f left == f right)
+
+
+type alias DiffAcc a =
     { left : List (Tree a)
     , right : List (Tree a)
     , tree : Tree a
@@ -138,7 +166,7 @@ type alias Acc a =
     }
 
 
-diffHelp : (a -> a -> Bool) -> Acc a -> List (Acc a) -> Diff a
+diffHelp : (a -> a -> Bool) -> DiffAcc a -> List (DiffAcc a) -> Diff a
 diffHelp eq acc stack =
     case ( acc.left, acc.right ) of
         ( [], [] ) ->
@@ -197,6 +225,103 @@ diffHelp eq acc stack =
                         | left = restL
                         , right = restR
                         , done = Patch (Replace l r) :: acc.done
+                        , isAllKeep = False
+                    }
+                    stack
+
+
+{-| TODO
+-}
+mergeWith : (a -> a -> Bool) -> Tree a -> Tree a -> Tree a
+mergeWith eq left right =
+    if eq (Tree.label left) (Tree.label right) then
+        mergeHelp eq
+            { left = Tree.children left
+            , right = Tree.children right
+            , tree = left
+            , done = []
+            , isAllKeep = True
+            }
+            []
+
+    else
+        right
+
+
+{-| TODO
+-}
+mergeBy : (a -> b) -> Tree a -> Tree a -> Tree a
+mergeBy f =
+    mergeWith (\left right -> f left == f right)
+
+
+type alias MergeAcc a =
+    { left : List (Tree a)
+    , right : List (Tree a)
+    , tree : Tree a
+    , done : List (Tree a)
+    , isAllKeep : Bool
+    }
+
+
+mergeHelp : (a -> a -> Bool) -> MergeAcc a -> List (MergeAcc a) -> Tree a
+mergeHelp eq acc stack =
+    case ( acc.left, acc.right ) of
+        ( [], [] ) ->
+            let
+                p =
+                    if acc.isAllKeep then
+                        acc.tree
+
+                    else
+                        Tree.tree (Tree.label acc.tree) (List.reverse acc.done)
+            in
+            case stack of
+                [] ->
+                    p
+
+                newAcc :: rest ->
+                    mergeHelp eq
+                        { newAcc
+                            | done = p :: newAcc.done
+                            , isAllKeep = acc.isAllKeep && newAcc.isAllKeep
+                        }
+                        rest
+
+        ( [], r :: restR ) ->
+            mergeHelp eq
+                { acc
+                    | right = restR
+                    , done = r :: acc.done
+                    , isAllKeep = False
+                }
+                stack
+
+        ( l :: restL, [] ) ->
+            mergeHelp eq
+                { acc
+                    | left = restL
+                    , isAllKeep = False
+                }
+                stack
+
+        ( l :: restL, r :: restR ) ->
+            if eq (Tree.label l) (Tree.label r) then
+                mergeHelp eq
+                    { left = Tree.children l
+                    , right = Tree.children r
+                    , tree = l
+                    , done = []
+                    , isAllKeep = True
+                    }
+                    ({ acc | left = restL, right = restR } :: stack)
+
+            else
+                mergeHelp eq
+                    { acc
+                        | left = restL
+                        , right = restR
+                        , done = r :: acc.done
                         , isAllKeep = False
                     }
                     stack
