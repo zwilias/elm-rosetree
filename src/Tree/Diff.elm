@@ -184,27 +184,31 @@ diffHelp eq acc stack =
 
                 newAcc :: rest ->
                     diffHelp eq
-                        { newAcc
-                            | done = p :: newAcc.done
-                            , isAllKeep = acc.isAllKeep && newAcc.isAllKeep
+                        { left = newAcc.left
+                        , right = newAcc.right
+                        , tree = newAcc.tree
+                        , done = p :: newAcc.done
+                        , isAllKeep = acc.isAllKeep && newAcc.isAllKeep
                         }
                         rest
 
         ( [], r :: restR ) ->
             diffHelp eq
-                { acc
-                    | right = restR
-                    , done = Patch (Insert r) :: acc.done
-                    , isAllKeep = False
+                { left = acc.left
+                , right = restR
+                , tree = acc.tree
+                , done = Patch (Insert r) :: acc.done
+                , isAllKeep = False
                 }
                 stack
 
         ( l :: restL, [] ) ->
             diffHelp eq
-                { acc
-                    | left = restL
-                    , done = Patch (Delete l) :: acc.done
-                    , isAllKeep = False
+                { left = restL
+                , right = acc.right
+                , tree = acc.tree
+                , done = Patch (Delete l) :: acc.done
+                , isAllKeep = False
                 }
                 stack
 
@@ -217,15 +221,22 @@ diffHelp eq acc stack =
                     , done = []
                     , isAllKeep = True
                     }
-                    ({ acc | left = restL, right = restR } :: stack)
+                    ({ left = restL
+                     , right = restR
+                     , tree = acc.tree
+                     , done = acc.done
+                     , isAllKeep = acc.isAllKeep
+                     }
+                        :: stack
+                    )
 
             else
                 diffHelp eq
-                    { acc
-                        | left = restL
-                        , right = restR
-                        , done = Patch (Replace l r) :: acc.done
-                        , isAllKeep = False
+                    { left = restL
+                    , right = restR
+                    , tree = acc.tree
+                    , done = Patch (Replace l r) :: acc.done
+                    , isAllKeep = False
                     }
                     stack
 
