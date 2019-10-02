@@ -310,28 +310,53 @@ mergeHelp eq acc stack =
 
                 newAcc :: rest ->
                     mergeHelp eq
-                        { newAcc
-                            | done = p :: newAcc.done
-                            , isAllKeep = acc.isAllKeep && newAcc.isAllKeep
+                        { left = newAcc.left
+                        , right = newAcc.right
+                        , tree = newAcc.tree
+                        , done = p :: newAcc.done
+                        , isAllKeep = acc.isAllKeep && newAcc.isAllKeep
                         }
                         rest
 
-        ( [], r :: restR ) ->
-            mergeHelp eq
-                { acc
-                    | right = restR
-                    , done = r :: acc.done
-                    , isAllKeep = False
-                }
-                stack
+        ( [], _ :: _ ) ->
+            let
+                p =
+                    Tree.tree (Tree.label acc.tree)
+                        (List.foldl (::) acc.right acc.done)
+            in
+            case stack of
+                [] ->
+                    p
 
-        ( l :: restL, [] ) ->
-            mergeHelp eq
-                { acc
-                    | left = restL
-                    , isAllKeep = False
-                }
-                stack
+                newAcc :: rest ->
+                    mergeHelp eq
+                        { left = newAcc.left
+                        , right = newAcc.right
+                        , tree = newAcc.tree
+                        , done = p :: newAcc.done
+                        , isAllKeep = acc.isAllKeep && newAcc.isAllKeep
+                        }
+                        rest
+
+        ( _ :: _, [] ) ->
+            let
+                p =
+                    Tree.tree (Tree.label acc.tree)
+                        (List.reverse acc.done)
+            in
+            case stack of
+                [] ->
+                    p
+
+                newAcc :: rest ->
+                    mergeHelp eq
+                        { left = newAcc.left
+                        , right = newAcc.right
+                        , tree = newAcc.tree
+                        , done = p :: newAcc.done
+                        , isAllKeep = acc.isAllKeep && newAcc.isAllKeep
+                        }
+                        rest
 
         ( l :: restL, r :: restR ) ->
             if eq (Tree.label l) (Tree.label r) then
@@ -342,14 +367,21 @@ mergeHelp eq acc stack =
                     , done = []
                     , isAllKeep = True
                     }
-                    ({ acc | left = restL, right = restR } :: stack)
+                    ({ left = restL
+                     , right = restR
+                     , tree = acc.tree
+                     , done = acc.done
+                     , isAllKeep = acc.isAllKeep
+                     }
+                        :: stack
+                    )
 
             else
                 mergeHelp eq
-                    { acc
-                        | left = restL
-                        , right = restR
-                        , done = r :: acc.done
-                        , isAllKeep = False
+                    { left = restL
+                    , right = restR
+                    , tree = acc.tree
+                    , done = r :: acc.done
+                    , isAllKeep = False
                     }
                     stack
