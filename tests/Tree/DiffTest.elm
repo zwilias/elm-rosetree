@@ -4,7 +4,7 @@ import Expect
 import Fuzz as F
 import Test exposing (..)
 import Tree exposing (Tree, singleton, tree)
-import Tree.Diff exposing (Diff(..), Patch(..), diff)
+import Tree.Diff exposing (Diff(..), Tail(..), diff)
 
 
 diffTest : Test
@@ -31,23 +31,16 @@ diffTest =
                     ]
                 )
                 |> Expect.equal
-                    (Patch
-                        (Copy "root"
-                            [ Patch
-                                (Copy "folder"
-                                    [ Keep (singleton "foo")
-                                    , Patch (Delete (singleton "bar"))
-                                    ]
-                                )
-                            , Patch
-                                (Replace
-                                    (singleton "yeah")
-                                    (tree "folder2" [ singleton "nice" ])
-                                )
-                            , Keep (singleton "keep me!")
-                            , Patch (Insert (singleton "add me"))
-                            ]
-                        )
+                    (Copy "root"
+                        [ Copy "folder"
+                            [ Keep (singleton "foo") ]
+                            (Left [ singleton "bar" ])
+                        , Replace
+                            (singleton "yeah")
+                            (tree "folder2" [ singleton "nice" ])
+                        , Keep (singleton "keep me!")
+                        ]
+                        (Right [ singleton "add me" ])
                     )
 
 

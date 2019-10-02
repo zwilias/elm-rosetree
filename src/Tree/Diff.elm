@@ -1,5 +1,5 @@
 module Tree.Diff exposing
-    ( Diff(..), Patch(..)
+    ( Diff(..), Tail(..)
     , diff, diffWith, diffBy
     , mergeBy, mergeWith
     )
@@ -13,7 +13,7 @@ from one tree to another. Merging trees allows actually executing these actions.
 
 ## Data types
 
-@docs Diff, Patch
+@docs Diff, Tail
 
 
 ## Diffing
@@ -37,34 +37,35 @@ import Tree exposing (Tree)
 
 {-| Either nothing changed, and we can keep a (sub)tree, or something changed.
 
-When something changed, the resulting change is further described in the `Patch`
-type.
+When something changed, there are essentially 2 cases:
+
+  - the labels on the matching nodes were different. If so, we `Replace` the
+    left with the right tree.
+  - the labels on this node were the same, but there was a difference in one or
+    more of the children.
+
+In case there was a different with the children, there is also the possibility
+that the length was different. This is described in the `Tail` of the `Copy`.
 
 -}
 type Diff a
     = Keep (Tree a)
-    | Patch (Patch a)
+    | Replace (Tree a) (Tree a)
+    | Copy a (List (Diff a)) (Tail a)
 
 
-{-| A patch described the concrete operation required to go from the left tree
-to the right tree.
+{-| If the left node had more children than the right now, we get a `Left` tail
+with the trailing children from the left tree.
 
-At the root of the tree, only `Replace` and `Copy` make sense:
+On the other hand, if the right node had more children we get a `Right` tail.
 
-  - `Replace` means that the root label differed, and as a result, the entire tree
-    is considered different.
-  - `Copy` means that the label is the same for both the left and right trees, but
-    something deeper in the tree has changed
-
-Those nested diffs could potentially be further patches, including the deleting
-and insertion of children.
+If both trees has the same number of children, the tail is `Empty`.
 
 -}
-type Patch a
-    = Insert (Tree a)
-    | Delete (Tree a)
-    | Replace (Tree a) (Tree a)
-    | Copy a (List (Diff a))
+type Tail a
+    = Left (List (Tree a))
+    | Right (List (Tree a))
+    | Empty
 
 
 {-| Diffing 2 trees (using standard equivalence `(==)`) produces a `Diff`!
@@ -90,22 +91,16 @@ type Patch a
             , singleton "keep me!"
             ]
         )
-    --> Diff.Patch
-    -->     (Diff.Copy "root"
-    -->         [ Diff.Patch
-    -->             (Diff.Copy "folder"
-    -->                 [ Diff.Keep (singleton "foo")
-    -->                 , Diff.Patch (Diff.Delete (singleton "bar"))
-    -->                 ]
-    -->             )
-    -->         , Diff.Patch
-    -->             (Diff.Replace
-    -->                 (singleton "yeah")
-    -->                 (tree "folder2" [ singleton "nice" ])
-    -->             )
-    -->         , Diff.Keep (singleton "keep me!")
-    -->         ]
-    -->     )
+    --> Diff.Copy "root"
+    -->     [ Diff.Copy "folder"
+    -->         [ Diff.Keep (singleton "foo") ]
+    -->         (Diff.Left [ singleton "bar" ])
+    -->     , Diff.Replace
+    -->         (singleton "yeah")
+    -->         (tree "folder2" [ singleton "nice" ])
+    -->     , Diff.Keep (singleton "keep me!")
+    -->     ]
+    -->     Diff.Empty
 
 -}
 diff : Tree a -> Tree a -> Diff a
@@ -137,7 +132,7 @@ diffWith eq left right =
             []
 
     else
-        Patch (Replace left right)
+        Replace left right
 
 
 {-| Diff using regular equality on a derived property of the label.
@@ -176,7 +171,7 @@ diffHelp eq acc stack =
                         Keep acc.tree
 
                     else
-                        Patch (Copy (Tree.label acc.tree) (List.reverse acc.done))
+                        Copy (Tree.label acc.tree) (List.reverse acc.done) Empty
             in
             case stack of
                 [] ->
@@ -192,25 +187,47 @@ diffHelp eq acc stack =
                         }
                         rest
 
-        ( [], r :: restR ) ->
-            diffHelp eq
-                { left = acc.left
-                , right = restR
-                , tree = acc.tree
-                , done = Patch (Insert r) :: acc.done
-                , isAllKeep = False
-                }
-                stack
+        ( [], _ :: _ ) ->
+            let
+                p =
+                    Copy (Tree.label acc.tree)
+                        (List.reverse acc.done)
+                        (Right acc.right)
+            in
+            case stack of
+                [] ->
+                    p
 
-        ( l :: restL, [] ) ->
-            diffHelp eq
-                { left = restL
-                , right = acc.right
-                , tree = acc.tree
-                , done = Patch (Delete l) :: acc.done
-                , isAllKeep = False
-                }
-                stack
+                newAcc :: rest ->
+                    diffHelp eq
+                        { left = newAcc.left
+                        , right = newAcc.right
+                        , tree = newAcc.tree
+                        , done = p :: newAcc.done
+                        , isAllKeep = acc.isAllKeep && newAcc.isAllKeep
+                        }
+                        rest
+
+        ( _ :: _, [] ) ->
+            let
+                p =
+                    Copy (Tree.label acc.tree)
+                        (List.reverse acc.done)
+                        (Left acc.left)
+            in
+            case stack of
+                [] ->
+                    p
+
+                newAcc :: rest ->
+                    diffHelp eq
+                        { left = newAcc.left
+                        , right = newAcc.right
+                        , tree = newAcc.tree
+                        , done = p :: newAcc.done
+                        , isAllKeep = acc.isAllKeep && newAcc.isAllKeep
+                        }
+                        rest
 
         ( l :: restL, r :: restR ) ->
             if eq (Tree.label l) (Tree.label r) then
@@ -235,7 +252,7 @@ diffHelp eq acc stack =
                     { left = restL
                     , right = restR
                     , tree = acc.tree
-                    , done = Patch (Replace l r) :: acc.done
+                    , done = Replace l r :: acc.done
                     , isAllKeep = False
                     }
                     stack
