@@ -122,7 +122,8 @@ This is your function!
 diffWith : (a -> a -> Bool) -> Tree a -> Tree a -> Diff a
 diffWith eq left right =
     if eq (Tree.label left) (Tree.label right) then
-        diffHelp eq
+        walk diffConf
+            eq
             { left = Tree.children left
             , right = Tree.children right
             , tree = left
@@ -152,117 +153,26 @@ diffBy f =
     diffWith (\left right -> f left == f right)
 
 
-type alias DiffAcc a =
-    { left : List (Tree a)
-    , right : List (Tree a)
-    , tree : Tree a
-    , done : List (Diff a)
-    , isAllKeep : Bool
+diffConf : Conf a (Diff a)
+diffConf =
+    { keep = Keep
+    , copyS = \a b -> Copy a (List.reverse b) Empty
+    , copyL = \a b c -> Copy a (List.reverse b) (Left c)
+    , copyR = \a b c -> Copy a (List.reverse b) (Right c)
+    , replace = Replace
     }
 
 
-diffHelp : (a -> a -> Bool) -> DiffAcc a -> List (DiffAcc a) -> Diff a
-diffHelp eq acc stack =
-    case ( acc.left, acc.right ) of
-        ( [], [] ) ->
-            let
-                p =
-                    if acc.isAllKeep then
-                        Keep acc.tree
 
-                    else
-                        Copy (Tree.label acc.tree) (List.reverse acc.done) Empty
-            in
-            case stack of
-                [] ->
-                    p
-
-                newAcc :: rest ->
-                    diffHelp eq
-                        { left = newAcc.left
-                        , right = newAcc.right
-                        , tree = newAcc.tree
-                        , done = p :: newAcc.done
-                        , isAllKeep = acc.isAllKeep && newAcc.isAllKeep
-                        }
-                        rest
-
-        ( [], _ :: _ ) ->
-            let
-                p =
-                    Copy (Tree.label acc.tree)
-                        (List.reverse acc.done)
-                        (Right acc.right)
-            in
-            case stack of
-                [] ->
-                    p
-
-                newAcc :: rest ->
-                    diffHelp eq
-                        { left = newAcc.left
-                        , right = newAcc.right
-                        , tree = newAcc.tree
-                        , done = p :: newAcc.done
-                        , isAllKeep = acc.isAllKeep && newAcc.isAllKeep
-                        }
-                        rest
-
-        ( _ :: _, [] ) ->
-            let
-                p =
-                    Copy (Tree.label acc.tree)
-                        (List.reverse acc.done)
-                        (Left acc.left)
-            in
-            case stack of
-                [] ->
-                    p
-
-                newAcc :: rest ->
-                    diffHelp eq
-                        { left = newAcc.left
-                        , right = newAcc.right
-                        , tree = newAcc.tree
-                        , done = p :: newAcc.done
-                        , isAllKeep = acc.isAllKeep && newAcc.isAllKeep
-                        }
-                        rest
-
-        ( l :: restL, r :: restR ) ->
-            if eq (Tree.label l) (Tree.label r) then
-                diffHelp eq
-                    { left = Tree.children l
-                    , right = Tree.children r
-                    , tree = l
-                    , done = []
-                    , isAllKeep = True
-                    }
-                    ({ left = restL
-                     , right = restR
-                     , tree = acc.tree
-                     , done = acc.done
-                     , isAllKeep = acc.isAllKeep
-                     }
-                        :: stack
-                    )
-
-            else
-                diffHelp eq
-                    { left = restL
-                    , right = restR
-                    , tree = acc.tree
-                    , done = Replace l r :: acc.done
-                    , isAllKeep = False
-                    }
-                    stack
+--------------------------------------------------------------------------------
 
 
 {-| -}
 mergeWith : (a -> a -> Bool) -> Tree a -> Tree a -> Tree a
 mergeWith eq left right =
     if eq (Tree.label left) (Tree.label right) then
-        mergeHelp eq
+        walk mergeConf
+            eq
             { left = Tree.children left
             , right = Tree.children right
             , tree = left
@@ -312,33 +222,57 @@ mergeBy f =
     mergeWith (\left right -> f left == f right)
 
 
-type alias MergeAcc a =
+mergeConf : Conf a (Tree a)
+mergeConf =
+    { keep = identity
+    , copyS = \l c -> Tree.tree l (List.reverse c)
+    , copyL = \l c _ -> Tree.tree l (List.reverse c)
+    , copyR = \l c cs -> Tree.tree l (List.foldl (::) cs c)
+    , replace = \_ t -> t
+    }
+
+
+
+--------------------------------------------------------------------------------
+
+
+type alias Acc a x =
     { left : List (Tree a)
     , right : List (Tree a)
     , tree : Tree a
-    , done : List (Tree a)
+    , done : List x
     , isAllKeep : Bool
     }
 
 
-mergeHelp : (a -> a -> Bool) -> MergeAcc a -> List (MergeAcc a) -> Tree a
-mergeHelp eq acc stack =
+type alias Conf a x =
+    { keep : Tree a -> x
+    , copyS : a -> List x -> x
+    , copyL : a -> List x -> List (Tree a) -> x
+    , copyR : a -> List x -> List (Tree a) -> x
+    , replace : Tree a -> Tree a -> x
+    }
+
+
+walk : Conf a x -> (a -> a -> Bool) -> Acc a x -> List (Acc a x) -> x
+walk conf eq acc stack =
     case ( acc.left, acc.right ) of
         ( [], [] ) ->
             let
                 p =
                     if acc.isAllKeep then
-                        acc.tree
+                        conf.keep acc.tree
 
                     else
-                        Tree.tree (Tree.label acc.tree) (List.reverse acc.done)
+                        conf.copyS (Tree.label acc.tree) acc.done
             in
             case stack of
                 [] ->
                     p
 
                 newAcc :: rest ->
-                    mergeHelp eq
+                    walk conf
+                        eq
                         { left = newAcc.left
                         , right = newAcc.right
                         , tree = newAcc.tree
@@ -350,15 +284,15 @@ mergeHelp eq acc stack =
         ( [], _ :: _ ) ->
             let
                 p =
-                    Tree.tree (Tree.label acc.tree)
-                        (List.foldl (::) acc.right acc.done)
+                    conf.copyR (Tree.label acc.tree) acc.done acc.right
             in
             case stack of
                 [] ->
                     p
 
                 newAcc :: rest ->
-                    mergeHelp eq
+                    walk conf
+                        eq
                         { left = newAcc.left
                         , right = newAcc.right
                         , tree = newAcc.tree
@@ -370,15 +304,15 @@ mergeHelp eq acc stack =
         ( _ :: _, [] ) ->
             let
                 p =
-                    Tree.tree (Tree.label acc.tree)
-                        (List.reverse acc.done)
+                    conf.copyL (Tree.label acc.tree) acc.done acc.left
             in
             case stack of
                 [] ->
                     p
 
                 newAcc :: rest ->
-                    mergeHelp eq
+                    walk conf
+                        eq
                         { left = newAcc.left
                         , right = newAcc.right
                         , tree = newAcc.tree
@@ -389,7 +323,8 @@ mergeHelp eq acc stack =
 
         ( l :: restL, r :: restR ) ->
             if eq (Tree.label l) (Tree.label r) then
-                mergeHelp eq
+                walk conf
+                    eq
                     { left = Tree.children l
                     , right = Tree.children r
                     , tree = l
@@ -406,11 +341,12 @@ mergeHelp eq acc stack =
                     )
 
             else
-                mergeHelp eq
+                walk conf
+                    eq
                     { left = restL
                     , right = restR
                     , tree = acc.tree
-                    , done = r :: acc.done
+                    , done = conf.replace l r :: acc.done
                     , isAllKeep = False
                     }
                     stack
