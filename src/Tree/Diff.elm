@@ -1,7 +1,7 @@
 module Tree.Diff exposing
     ( Diff(..), Tail(..)
     , diff, diffWith, diffBy
-    , mergeBy, mergeWith
+    , mergeWith, mergeBy
     )
 
 {-| Diffing and merging trees
@@ -28,7 +28,7 @@ regular equality on the labels will always result in the second tree being
 returned. For that reason, only `mergeWith` and `mergeBy` exist: `merge a b = b`
 feels like a silly function to offer!
 
-@docs mergeWith mergeBy
+@docs mergeWith, mergeBy
 
 -}
 
