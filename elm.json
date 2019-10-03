@@ -6,7 +6,8 @@
     "version": "1.4.0",
     "exposed-modules": [
         "Tree",
-        "Tree.Zipper"
+        "Tree.Zipper",
+        "Tree.Diff"
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
     "dependencies": {
@@ -14,6 +15,6 @@
     },
     "test-dependencies": {
         "elm/html": "1.0.0 <= v < 2.0.0",
-        "elm-explorations/test": "1.0.0 <= v < 2.0.0"
+        "elm-explorations/test": "1.2.1 <= v < 2.0.0"
     }
 }
