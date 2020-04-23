@@ -421,7 +421,7 @@ indexedMap f t =
         |> Tuple.second
 
 
-{-| Map a function over every note while accumulating some value.
+{-| Map a function over every node while accumulating some value.
 
     tree 1
         [ singleton 2
