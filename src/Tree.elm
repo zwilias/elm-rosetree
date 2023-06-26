@@ -1,9 +1,12 @@
 module Tree exposing
     ( Tree, singleton, tree, label, children
     , mapLabel, replaceLabel, mapChildren, replaceChildren, prependChild, appendChild
-    , foldl, foldr, count, flatten
-    , map, indexedMap, mapAccumulate, map2, indexedMap2, mapAccumulate2, andMap
-    , unfold, restructure
+    , count, depth
+    , foldl, foldr
+    , flatten, leaves, links
+    , map, indexedMap, mapAccumulate, map2, indexedMap2, mapAccumulate2, andMap, mapWithContextBottomUp, mapAccumulateWithContextBottomUp, mapWithContextTopDown, mapAccumulateWithContextTopDown
+    , findBfs
+    , sortWith, unfold, restructure
     )
 
 {-| A multiway tree or rosetree is a labeled tree where each node can have zero,
@@ -40,19 +43,34 @@ children of their own, and so on.
 @docs mapLabel, replaceLabel, mapChildren, replaceChildren, prependChild, appendChild
 
 
+# Describing a tree
+
+@docs count, depth
+
+
 # Folds
 
-@docs foldl, foldr, count, flatten
+@docs foldl, foldr
+
+
+# Converting to lists
+
+@docs flatten, leaves, links
 
 
 # Mapping and traversing
 
-@docs map, indexedMap, mapAccumulate, map2, indexedMap2, mapAccumulate2, andMap
+@docs map, indexedMap, mapAccumulate, map2, indexedMap2, mapAccumulate2, andMap, mapWithContextBottomUp, mapAccumulateWithContextBottomUp, mapWithContextTopDown, mapAccumulateWithContextTopDown
+
+
+# Search
+
+@docs findBfs
 
 
 # Fancy stuff
 
-@docs unfold, restructure
+@docs sortWith, unfold, restructure
 
 -}
 
@@ -291,6 +309,71 @@ foldlHelp f acc trees nextSets =
 flatten : Tree a -> List a
 flatten t =
     foldr (::) [] t
+
+
+{-| Returns the nodes that have no children.
+-}
+leaves : Tree a -> List a
+leaves t =
+    leavesHelp [] [ t ] []
+
+
+leavesHelp : List a -> List (Tree a) -> List (List (Tree a)) -> List a
+leavesHelp soFar trees nextSets =
+    case trees of
+        [] ->
+            case nextSets of
+                set :: sets ->
+                    leavesHelp soFar set sets
+
+                [] ->
+                    soFar
+
+        (Tree d []) :: rest ->
+            leavesHelp (d :: soFar) rest nextSets
+
+        (Tree _ xs) :: rest ->
+            leavesHelp soFar rest (xs :: nextSets)
+
+
+{-| Returns pairs representing parent-child relationships in the tree.
+
+The left item is the label of the parent, the right item is the label of
+the child. Useful for visualising trees.
+
+    tree 1
+        [ singleton 2
+        , tree 3
+            [ singleton 4
+            , singleton 5
+            ]
+        , singleton 6
+        ]
+        |> links
+    --> [ ( 1, 2 ), ( 1, 3 ), ( 1, 6 ), ( 3, 4 ), ( 3, 5 ) ]
+
+-}
+links : Tree a -> List ( a, a )
+links (Tree l cr) =
+    linksHelp l [] cr []
+
+
+linksHelp : a -> List ( a, a ) -> List (Tree a) -> List ( a, List (Tree a) ) -> List ( a, a )
+linksHelp parent soFar trees nextSets =
+    case trees of
+        [] ->
+            case nextSets of
+                ( newParent, set ) :: sets ->
+                    linksHelp newParent soFar set sets
+
+                [] ->
+                    List.reverse soFar
+
+        (Tree d []) :: rest ->
+            linksHelp parent (( parent, d ) :: soFar) rest nextSets
+
+        (Tree d xs) :: rest ->
+            linksHelp parent (( parent, d ) :: soFar) rest (( d, xs ) :: nextSets)
 
 
 {-| Create a tree from a seed.
@@ -649,6 +732,316 @@ type alias Map2Acc a b c =
     , done : List (Tree c)
     , label : c
     }
+
+
+{-| Counts the number of levels in a tree (where the root is 0).
+
+    depth (tree 2 [ tree 1 [tree 0 []]])
+    --> 2
+
+-}
+depth : Tree a -> Int
+depth t =
+    Tuple.first (mapAccumulateWithContextTopDown (\s ctx -> ( max s (List.length ctx.ancestors), () )) 0 t)
+
+
+{-| Maps the tree, but gives the mapping function access to the context of the tree.
+
+This is quite useful when using a tree to model hierarchical relationships, as the
+position of the nodes of the tree is often as significant to operations on the tree as
+are the values contained.
+
+This is a pre-order traversal of the tree, meaning that the tree is transformed from the
+root to the leaves, giving you access to untransformed children and transformed parent nodes.
+
+-}
+mapWithContextTopDown : ({ ancestors : List b, node : a, children : List (Tree a) } -> b) -> Tree a -> Tree b
+mapWithContextTopDown f t =
+    mapAccumulateWithContextTopDown (\_ e -> ( (), f e )) () t
+        |> Tuple.second
+
+
+{-| Maps the tree, but gives the mapping function access to the context of the tree.
+
+This is a post-order traversal of the tree, meaning that the tree is transformed from the
+leaves to the root, giving you access to transformed children and untransformed parent nodes.
+
+-}
+mapWithContextBottomUp : ({ ancestors : List a, node : a, children : List (Tree b) } -> b) -> Tree a -> Tree b
+mapWithContextBottomUp f t =
+    mapAccumulateWithContextBottomUp (\_ e -> ( (), f e )) () t
+        |> Tuple.second
+
+
+{-| Like `mapWithContextTopDown`, but with an accumulator argument.
+-}
+mapAccumulateWithContextTopDown : (s -> { ancestors : List b, node : a, children : List (Tree a) } -> ( s, b )) -> s -> Tree a -> ( s, Tree b )
+mapAccumulateWithContextTopDown f s (Tree d cs) =
+    let
+        ( s_, d_ ) =
+            f s { ancestors = [], node = d, children = cs }
+    in
+    mapAccumulateWithContextTopDownHelp f
+        s_
+        { todo = cs
+        , done = []
+        , label = d_
+        , parents = [ d_ ]
+        }
+        []
+
+
+mapAccumulateWithContextTopDownHelp :
+    (s -> { ancestors : List b, node : a, children : List (Tree a) } -> ( s, b ))
+    -> s
+    -> MapAccCtxTopDown a b
+    -> List (MapAccCtxTopDown a b)
+    -> ( s, Tree b )
+mapAccumulateWithContextTopDownHelp f state acc stack =
+    case acc.todo of
+        [] ->
+            let
+                node =
+                    Tree acc.label (List.reverse acc.done)
+            in
+            case stack of
+                [] ->
+                    ( state, node )
+
+                top :: rest ->
+                    mapAccumulateWithContextTopDownHelp f state { top | done = node :: top.done } rest
+
+        (Tree d []) :: rest ->
+            let
+                ( state_, label_ ) =
+                    f state { children = [], node = d, ancestors = acc.parents }
+            in
+            mapAccumulateWithContextTopDownHelp f
+                state_
+                { acc
+                    | todo = rest
+                    , done = Tree label_ [] :: acc.done
+                }
+                stack
+
+        (Tree d cs) :: rest ->
+            let
+                ( state_, label_ ) =
+                    f state { children = cs, node = d, ancestors = acc.parents }
+            in
+            mapAccumulateWithContextTopDownHelp f
+                state_
+                { todo = cs
+                , done = []
+                , label = label_
+                , parents = label_ :: acc.parents
+                }
+                ({ acc | todo = rest } :: stack)
+
+
+type alias MapAccCtxTopDown a b =
+    { todo : List (Tree a)
+    , done : List (Tree b)
+    , parents : List b
+    , label : b
+    }
+
+
+{-| Like `mapWithContextBottomUp`, but with an accumulator argument.
+-}
+mapAccumulateWithContextBottomUp : (s -> { ancestors : List a, node : a, children : List (Tree b) } -> ( s, b )) -> s -> Tree a -> ( s, Tree b )
+mapAccumulateWithContextBottomUp f s (Tree d cs) =
+    mapAccumulateWithContextBottomUpHelp f
+        s
+        { todo = cs
+        , done = []
+        , label = d
+        , parents = [ d ]
+        }
+        []
+
+
+mapAccumulateWithContextBottomUpHelp :
+    (s -> { ancestors : List a, node : a, children : List (Tree b) } -> ( s, b ))
+    -> s
+    -> MapAccCtxBottomUp a b
+    -> List (MapAccCtxBottomUp a b)
+    -> ( s, Tree b )
+mapAccumulateWithContextBottomUpHelp f state acc stack =
+    case acc.todo of
+        [] ->
+            let
+                children_ =
+                    List.reverse acc.done
+
+                ( state_, label_ ) =
+                    f state { children = children_, node = acc.label, ancestors = acc.parents }
+
+                node =
+                    Tree label_ children_
+            in
+            case stack of
+                [] ->
+                    ( state_, node )
+
+                top :: rest ->
+                    mapAccumulateWithContextBottomUpHelp f state { top | done = node :: top.done } rest
+
+        (Tree d []) :: rest ->
+            let
+                ( state_, label_ ) =
+                    f state { children = [], node = d, ancestors = acc.parents }
+            in
+            mapAccumulateWithContextBottomUpHelp f
+                state_
+                { acc
+                    | todo = rest
+                    , done = Tree label_ [] :: acc.done
+                }
+                stack
+
+        (Tree d cs) :: rest ->
+            mapAccumulateWithContextBottomUpHelp f
+                state
+                { todo = cs
+                , done = []
+                , label = d
+                , parents = d :: acc.parents
+                }
+                ({ acc | todo = rest } :: stack)
+
+
+type alias MapAccCtxBottomUp a b =
+    { todo : List (Tree a)
+    , done : List (Tree b)
+    , parents : List a
+    , label : a
+    }
+
+
+{-| Sorts all children of each node based on the comparator function (the function recieves a list of ancestors).
+
+    tree 1
+        [ tree 3
+            [ singleton 5
+            , singleton 4
+            ]
+        , singleton 2
+        , singleton 6
+        ]
+        |> sortWith (\_ a b -> compare (label a) (label b))
+    --> tree 1
+    -->   [ singleton 2
+    -->    , tree 3
+    -->        [ singleton 4
+    -->        , singleton 5
+    -->        ]
+    -->    , singleton 6
+    -->    ]
+
+-}
+sortWith : (List a -> Tree a -> Tree a -> Order) -> Tree a -> Tree a
+sortWith compareFn (Tree d cs) =
+    sortWithHelp compareFn
+        { todo = cs
+        , done = []
+        , label = d
+        , parents = [ d ]
+        }
+        []
+
+
+sortWithHelp : (List a -> Tree a -> Tree a -> Order) -> MapAccCtxBottomUp a a -> List (MapAccCtxBottomUp a a) -> Tree a
+sortWithHelp compareFn acc stack =
+    case acc.todo of
+        [] ->
+            let
+                children_ =
+                    List.sortWith (compareFn acc.parents) acc.done
+
+                node =
+                    Tree acc.label children_
+            in
+            case stack of
+                [] ->
+                    node
+
+                top :: rest ->
+                    sortWithHelp compareFn { top | done = node :: top.done } rest
+
+        (Tree d []) :: rest ->
+            sortWithHelp compareFn
+                { acc
+                    | todo = rest
+                    , done = Tree d [] :: acc.done
+                }
+                stack
+
+        (Tree d cs) :: rest ->
+            sortWithHelp compareFn
+                { todo = cs
+                , done = []
+                , label = d
+                , parents = d :: acc.parents
+                }
+                ({ acc | todo = rest } :: stack)
+
+
+{-| Finds a subtree whose label matches the predicate.
+
+Searches the tree in a breadth-first manner.
+
+    tree 1
+        [ tree 3
+            [ singleton 5
+            , singleton 4
+            ]
+        , singleton 2
+        , singleton 6
+        ]
+        |> findBfs (\a -> label a == 3)
+    --> Just (tree 3 [ singleton 5, singleton 4 ])
+
+-}
+findBfs : (Tree a -> Bool) -> Tree a -> Maybe (Tree a)
+findBfs predicate t =
+    findBfsHelp predicate (Fifo [ t ] [])
+
+
+findBfsHelp : (Tree a -> Bool) -> Queue (Tree a) -> Maybe (Tree a)
+findBfsHelp predicate queue =
+    case removeQueue queue of
+        ( Just t, rest ) ->
+            if predicate t then
+                Just t
+
+            else
+                findBfsHelp predicate (insertQueue t rest)
+
+        ( Nothing, _ ) ->
+            Nothing
+
+
+type Queue a
+    = Fifo (List a) (List a)
+
+
+insertQueue : Tree a -> Queue (Tree a) -> Queue (Tree a)
+insertQueue (Tree _ cs) (Fifo front back) =
+    Fifo front (List.reverse cs ++ back)
+
+
+removeQueue : Queue a -> ( Maybe a, Queue a )
+removeQueue fifo =
+    case fifo of
+        Fifo [] [] ->
+            ( Nothing, fifo )
+
+        Fifo [] back ->
+            removeQueue <| Fifo (List.reverse back) []
+
+        Fifo (next :: rest) back ->
+            ( Just next, Fifo rest back )
 
 
 {-| Restructure a `Tree` into another type of structure.
