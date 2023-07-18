@@ -2,7 +2,7 @@ module TreeTest exposing (depthFirstTraversalTest, flattenTest, foldlTest, foldr
 
 import Expect
 import Fuzz as F
-import Test exposing (..)
+import Test exposing (Test, describe, fuzz, test)
 import Tree exposing (Tree, tree)
 
 

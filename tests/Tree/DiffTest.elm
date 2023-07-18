@@ -1,8 +1,7 @@
 module Tree.DiffTest exposing (diffTest, sameTree)
 
 import Expect
-import Fuzz as F
-import Test exposing (..)
+import Test exposing (Test, test)
 import Tree exposing (Tree, singleton, tree)
 import Tree.Diff exposing (Diff(..), Tail(..), diff)
 
