@@ -1,12 +1,22 @@
 {
   "dependencies": {
-    "elm-xref": "^0.3.2",
-    "elm": "0.19.0-no-deps",
+    "elm": "0.19.1-5",
+    "elm-doc-preview": "^5.0.5",
     "elm-format": "^0.8.2",
-    "elm-verify-examples": "^4.0.0",
-    "elm-test": "^0.19.0-rev6"
+    "elm-review": "^2.10.2",
+    "elm-test": "0.19.1-revision12",
+    "elm-verify-examples": "^5.2.0",
+    "npm-run-all": "^4.1.5"
   },
   "scripts": {
-    "test": "elm make && elm-xref && elm-format --validate src && elm-verify-examples&& elm-test"
+    "test": "npm-run-all --print-name  --sequential test:make test:format test:examples test:run  test:review ",
+    "test:make": "elm make --docs=docs.json",
+    "test:format": "elm-format src/ tests/TreeTest.elm tests/Tree --validate",
+    "test:examples": "elm-verify-examples",
+    "test:run": "elm-test",
+    "test:review": "elm-review",
+    "preview-docs": "elm-doc-preview",
+    "elm-bump": "npm-run-all --print-name --silent --sequential test bump-version 'test:review -- --fix-all-without-prompt' update-examples",
+    "bump-version": "(yes | elm bump)"
   }
 }

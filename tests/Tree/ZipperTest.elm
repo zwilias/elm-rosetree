@@ -1,8 +1,8 @@
-module Tree.ZipperTest exposing (Motion, applyMotions, backward, find, findFromRoot, lastDescendant, motions, rootOfAnyMotionIsSame, tree, treeOfInitIsSelf)
+module Tree.ZipperTest exposing (Motion, backward, find, findFromRoot, lastDescendant, removeTree, rootOfAnyMotionIsSame, treeOfInitIsSelf)
 
 import Expect
 import Fuzz exposing (Fuzzer)
-import Test exposing (..)
+import Test exposing (Test, describe, fuzz, test)
 import Tree exposing (Tree)
 import Tree.Zipper as Zipper exposing (Zipper)
 
