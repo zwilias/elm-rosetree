@@ -1,11 +1,11 @@
 module Tree exposing
-    ( Tree, singleton, tree, label, children
-    , mapLabel, replaceLabel, mapChildren, replaceChildren, prependChild, appendChild
-    , count, depth
+    ( Tree(..), singleton, tree, label, children
+    , updateLabel, replaceLabel, updateChildren, replaceChildren, prependChild, appendChild
+    , length, depth
     , foldl, foldr
-    , flatten, leaves, links
+    , toList, leaves, links
     , map, indexedMap, mapAccumulate, map2, indexedMap2, mapAccumulate2, andMap
-    , findBfs
+    , find
     , sortWith, unfold, restructure
     , Step(..), breadthFirstFold, depthFirstFold, depthFirstTraversal
     )
@@ -41,12 +41,12 @@ children of their own, and so on.
 
 # Modification
 
-@docs mapLabel, replaceLabel, mapChildren, replaceChildren, prependChild, appendChild
+@docs updateLabel, replaceLabel, updateChildren, replaceChildren, prependChild, appendChild
 
 
 # Describing a tree
 
-@docs count, depth
+@docs length, depth
 
 
 # Folds
@@ -56,7 +56,7 @@ children of their own, and so on.
 
 # Converting to lists
 
-@docs flatten, leaves, links
+@docs toList, leaves, links
 
 
 # Mapping and traversing
@@ -66,7 +66,7 @@ children of their own, and so on.
 
 # Search
 
-@docs findBfs
+@docs find
 
 
 # Fancy stuff
@@ -102,6 +102,42 @@ functions.
 
 {-| Represents a multiway tree. Each node in the tree holds a piece of
 information (the `label`) and a list of children, each of which is a tree.
+
+**Note:** The constructors here are exposed as this can be sometimes easier
+to program than having to use the functions provided and can be an easy way
+to unblock yourself to build tree processing algorithms.
+
+However the naive way of building tree algorithms is _not_ stack safe and
+can cause crashes for large tree inputs.
+
+For instance, a `map` function can trivially be defined as:
+
+    map : (a -> b) -> Tree a -> Tree b
+    map fn (Tree l c) =
+        Tree (fn l) (List.map (map fn) c)
+
+However, running this definition on a large tree can easily throw a
+`Uncaught RangeError: Maximum call stack size exceeded`.
+
+Instead, it is often better to look at this libraries generic traversal
+functions, which can provide a stack safe implementation without too
+much overhead:
+
+    map : (a -> b) -> Tree a -> Tree b
+    map fn t =
+        Tree.depthFirstTraversal
+            -- pass through state, apply fn to label, pass through children
+            (\s a l c -> ( s, fn l, c ))
+            -- pass through state, reassemble tree
+            (\s a l c -> ( s, Tree.tree l c ))
+            -- we don't really care about state
+            ()
+            t
+            -- discard state
+            |> Tuple.second
+
+With this in mind, it's certainly OK to unblock yourself with the simpler version!
+
 -}
 type Tree a
     = Tree a (List (Tree a))
@@ -137,7 +173,7 @@ singleton v =
             , singleton 5
             ]
         ]
-        |> count
+        |> length
     --> 6
 
 -}
@@ -161,12 +197,12 @@ label (Tree v _) =
 {-| Execute a function on the label of this tree.
 
     tree "hello" [ singleton "world", singleton "etc" ]
-        |> mapLabel String.toUpper
+        |> updateLabel String.toUpper
     --> tree "HELLO" [ singleton "world", singleton "etc" ]
 
 -}
-mapLabel : (a -> a) -> Tree a -> Tree a
-mapLabel f (Tree v cs) =
+updateLabel : (a -> a) -> Tree a -> Tree a
+updateLabel f (Tree v cs) =
     Tree (f v) cs
 
 
@@ -206,7 +242,7 @@ children (Tree _ c) =
         , tree "upper2" [ singleton "lower2"]
         , singleton "upper3"
         ]
-        |> mapChildren (List.map (mapLabel String.toUpper))
+        |> updateChildren (List.map (mapLabel String.toUpper))
     --> tree "lower1"
     -->     [ singleton "UPPER1"
     -->     , tree "UPPER2" [ singleton "lower2"]
@@ -214,8 +250,8 @@ children (Tree _ c) =
     -->     ]
 
 -}
-mapChildren : (List (Tree a) -> List (Tree a)) -> Tree a -> Tree a
-mapChildren f (Tree v cs) =
+updateChildren : (List (Tree a) -> List (Tree a)) -> Tree a -> Tree a
+updateChildren f (Tree v cs) =
     Tree v (f cs)
 
 
@@ -259,16 +295,16 @@ appendChild c (Tree v cs) =
 {-| Count the labels in a tree.
 
     singleton "foo"
-        |> count
+        |> length
     --> 1
 
     tree "foo" [ singleton "bar", singleton "baz" ]
-        |> count
+        |> length
     --> 3
 
 -}
-count : Tree a -> Int
-count t =
+length : Tree a -> Int
+length t =
     foldl (\_ x -> x + 1) 0 t
 
 
@@ -313,8 +349,8 @@ foldr f acc t =
 
 {-| Flattens the tree into a list. This is equivalent to `foldr (::) []`
 -}
-flatten : Tree a -> List a
-flatten t =
+toList : Tree a -> List a
+toList t =
     foldr (::) [] t
 
 
@@ -544,9 +580,9 @@ indexedMap2 f left right =
 matching labels in the tree of values, truncating branches to match the common
 shape of the trees.
 -}
-andMap : Tree (a -> b) -> Tree a -> Tree b
+andMap : Tree a -> Tree (a -> b) -> Tree b
 andMap =
-    map2 (<|)
+    map2 (|>)
 
 
 {-| Allows mapping over 2 trees while also accumulating a value.
@@ -707,12 +743,12 @@ Searches the tree in a breadth-first manner.
         , singleton 2
         , singleton 6
         ]
-        |> findBfs (\a -> label a == 3)
+        |> find (\a -> label a == 3)
     --> Just (tree 3 [ singleton 5, singleton 4 ])
 
 -}
-findBfs : (Tree a -> Bool) -> Tree a -> Maybe (Tree a)
-findBfs predicate t =
+find : (Tree a -> Bool) -> Tree a -> Maybe (Tree a)
+find predicate t =
     breadthFirstFold
         (\s _ l c ->
             if predicate (tree l c) then

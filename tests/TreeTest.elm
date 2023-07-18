@@ -12,12 +12,12 @@ lengthTest =
         [ test "count of singleton is 1" <|
             \_ ->
                 Tree.singleton ()
-                    |> Tree.count
+                    |> Tree.length
                     |> Expect.equal 1
         , fuzz (F.intRange 0 100) "count of flat tree is children + 1" <|
             \childCount ->
                 tree () (List.repeat childCount (tree () []))
-                    |> Tree.count
+                    |> Tree.length
                     |> Expect.equal (childCount + 1)
         , test "Count of hardcoded tree" <|
             \_ ->
@@ -26,7 +26,7 @@ lengthTest =
                     , tree () [ tree () [] ]
                     , tree () [ tree () [ tree () [], tree () [] ] ]
                     ]
-                    |> Tree.count
+                    |> Tree.length
                     |> Expect.equal 8
         ]
 
@@ -66,7 +66,7 @@ flattenTest =
                 , tree 3 [ tree 4 [] ]
                 , tree 5 [ tree 6 [ tree 7 [], tree 8 [] ] ]
                 ]
-                |> Tree.flatten
+                |> Tree.toList
                 |> Expect.equal [ 1, 2, 3, 4, 5, 6, 7, 8 ]
 
 

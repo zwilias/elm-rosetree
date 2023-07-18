@@ -167,7 +167,8 @@ diffConf =
 --------------------------------------------------------------------------------
 
 
-{-| -}
+{-| Executes a merge.
+-}
 mergeWith : (a -> a -> Bool) -> Tree a -> Tree a -> Tree a
 mergeWith eq left right =
     if eq (Tree.label left) (Tree.label right) then

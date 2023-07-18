@@ -809,7 +809,7 @@ removeTree (Zipper zipper) =
 -}
 mapLabel : (a -> a) -> Zipper a -> Zipper a
 mapLabel f zipper =
-    mapTree (Tree.mapLabel f) zipper
+    mapTree (Tree.updateLabel f) zipper
 
 
 {-| Replace the label of the currently focused tree.
