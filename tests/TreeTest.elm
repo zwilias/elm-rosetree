@@ -1,4 +1,4 @@
-module TreeTest exposing (flattenTest, foldlTest, foldrTest, indexedMap, indexedMap2, lengthTest, map2, mapTest, unfold)
+module TreeTest exposing (depthFirstTraversalTest, flattenTest, foldlTest, foldrTest, indexedMap, indexedMap2, lengthTest, map2, mapTest, unfold)
 
 import Expect
 import Fuzz as F
@@ -297,3 +297,69 @@ indexedMap2 =
             in
             Tree.indexedMap2 (\n i s -> ( n, i, s )) left right
                 |> Expect.equal expected
+
+
+depthFirstTraversalTest : Test
+depthFirstTraversalTest =
+    describe "depthFirstTraversal"
+        [ test "accumulates state correctly" <|
+            \() ->
+                let
+                    t =
+                        Tree.tree 1
+                            [ Tree.singleton 2
+                            , Tree.singleton 3
+                            , Tree.tree 4
+                                [ Tree.singleton 5
+                                , Tree.singleton 6
+                                ]
+                            , Tree.singleton 7
+                            ]
+                in
+                t
+                    |> Tree.depthFirstTraversal (\( d, u ) _ l c -> ( ( d + 1, u ), ( l, d, 0 ), c )) (\( d, u ) _ ( l, p, _ ) c -> ( ( d, u + 1 ), Tree.tree ( l, p, u ) c )) ( 0, 0 )
+                    |> Expect.equal
+                        ( ( 7, 7 )
+                        , Tree.tree ( 1, 0, 6 )
+                            [ Tree.singleton ( 2, 1, 0 )
+                            , Tree.singleton ( 3, 2, 1 )
+                            , Tree.tree ( 4, 3, 4 )
+                                [ Tree.singleton ( 5, 4, 2 )
+                                , Tree.singleton ( 6, 5, 3 )
+                                ]
+                            , Tree.singleton ( 7, 6, 5 )
+                            ]
+                        )
+        , test "provides ancestors nicely" <|
+            \() ->
+                let
+                    tripleFirst : ( a, b, c ) -> a
+                    tripleFirst ( a, _, _ ) =
+                        a
+
+                    t =
+                        Tree.tree 1
+                            [ Tree.singleton 2
+                            , Tree.singleton 3
+                            , Tree.tree 4
+                                [ Tree.singleton 5
+                                , Tree.singleton 6
+                                ]
+                            , Tree.singleton 7
+                            ]
+                in
+                t
+                    |> Tree.depthFirstTraversal (\s a l c -> ( s, ( l, List.map tripleFirst a, [] ), c )) (\s a ( l, p, _ ) c -> ( s, Tree.tree ( l, p, List.map tripleFirst a ) c )) ()
+                    |> Expect.equal
+                        ( ()
+                        , Tree.tree ( 1, [], [] )
+                            [ Tree.singleton ( 2, [ 1 ], [ 1 ] )
+                            , Tree.singleton ( 3, [ 1 ], [ 1 ] )
+                            , Tree.tree ( 4, [ 1 ], [ 1 ] )
+                                [ Tree.singleton ( 5, [ 4, 1 ], [ 4, 1 ] )
+                                , Tree.singleton ( 6, [ 4, 1 ], [ 4, 1 ] )
+                                ]
+                            , Tree.singleton ( 7, [ 1 ], [ 1 ] )
+                            ]
+                        )
+        ]
