@@ -311,22 +311,6 @@ foldr f acc t =
     List.foldl f acc <| foldl (::) [] t
 
 
-
--- foldlHelp : (a -> b -> b) -> b -> List (Tree a) -> List (List (Tree a)) -> b
--- foldlHelp f acc trees nextSets =
---     case trees of
---         [] ->
---             case nextSets of
---                 set :: sets ->
---                     foldlHelp f acc set sets
---                 [] ->
---                     acc
---         (Tree d []) :: rest ->
---             foldlHelp f (f d acc) rest nextSets
---         (Tree d xs) :: rest ->
---             foldlHelp f (f d acc) xs (rest :: nextSets)
-
-
 {-| Flattens the tree into a list. This is equivalent to `foldr (::) []`
 -}
 flatten : Tree a -> List a
@@ -397,22 +381,6 @@ links t =
         []
         t
         |> List.reverse
-
-
-
--- linksHelp : a -> List ( a, a ) -> List (Tree a) -> List ( a, List (Tree a) ) -> List ( a, a )
--- linksHelp parent soFar trees nextSets =
---     case trees of
---         [] ->
---             case nextSets of
---                 ( newParent, set ) :: sets ->
---                     linksHelp newParent soFar set sets
---                 [] ->
---                     List.reverse soFar
---         (Tree d []) :: rest ->
---             linksHelp parent (( parent, d ) :: soFar) rest nextSets
---         (Tree d xs) :: rest ->
---             linksHelp parent (( parent, d ) :: soFar) rest (( d, xs ) :: nextSets)
 
 
 {-| Create a tree from a seed.
