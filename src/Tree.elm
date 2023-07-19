@@ -242,7 +242,7 @@ children (Tree _ c) =
         , tree "upper2" [ singleton "lower2"]
         , singleton "upper3"
         ]
-        |> updateChildren (List.map (mapLabel String.toUpper))
+        |> updateChildren (List.map (updateLabel String.toUpper))
     --> tree "lower1"
     -->     [ singleton "UPPER1"
     -->     , tree "UPPER2" [ singleton "lower2"]

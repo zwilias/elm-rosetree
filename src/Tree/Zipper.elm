@@ -2,7 +2,7 @@ module Tree.Zipper exposing
     ( Zipper, fromTree, fromForest, toTree, toForest, tree, label, children
     , firstChild, lastChild, parent, forward, backward, root, lastDescendant, nextSibling, previousSibling
     , siblingsBeforeFocus, siblingsAfterFocus
-    , mapTree, replaceTree, removeTree, mapLabel, replaceLabel, append, prepend
+    , updateTree, replaceTree, removeTree, updateLabel, replaceLabel, append, prepend
     , findNext, findPrevious, findFromRoot
     )
 
@@ -29,7 +29,7 @@ modify the tree structure while walking through it.
 
 # Modification
 
-@docs mapTree, replaceTree, removeTree, mapLabel, replaceLabel, append, prepend
+@docs updateTree, replaceTree, removeTree, updateLabel, replaceLabel, append, prepend
 
 
 # Utility
@@ -118,7 +118,7 @@ Note that if the root has siblings, these end up being ignored!
 
     fromTree myTree
         |> lastDescendant
-        |> mapLabel (\x -> x * 2)
+        |> updateLabel (\x -> x * 2)
         |> toTree
     --> Tree.tree 1
     -->     [ Tree.singleton 2
@@ -173,7 +173,7 @@ the tree that's current in "in focus" in isolation.
 
     fromTree myTree
         |> lastDescendant
-        |> mapLabel (\x -> x * 2)
+        |> updateLabel (\x -> x * 2)
         |> tree
     --> Tree.singleton 6
 
@@ -685,8 +685,8 @@ siblingsAfterFocus (Zipper { after }) =
 
 {-| Execute a function on the currently focused tree, replacing it in the zipper.
 -}
-mapTree : (Tree a -> Tree a) -> Zipper a -> Zipper a
-mapTree f (Zipper zipper) =
+updateTree : (Tree a -> Tree a) -> Zipper a -> Zipper a
+updateTree f (Zipper zipper) =
     Zipper { zipper | focus = f zipper.focus }
 
 
@@ -807,16 +807,16 @@ removeTree (Zipper zipper) =
 
 {-| Map a function on the label of the currently focused tree.
 -}
-mapLabel : (a -> a) -> Zipper a -> Zipper a
-mapLabel f zipper =
-    mapTree (Tree.updateLabel f) zipper
+updateLabel : (a -> a) -> Zipper a -> Zipper a
+updateLabel f zipper =
+    updateTree (Tree.updateLabel f) zipper
 
 
 {-| Replace the label of the currently focused tree.
 -}
 replaceLabel : a -> Zipper a -> Zipper a
 replaceLabel l zipper =
-    mapLabel (always l) zipper
+    updateLabel (always l) zipper
 
 
 {-| Prepend a tree as a sibling _before_ the currently focused tree.
